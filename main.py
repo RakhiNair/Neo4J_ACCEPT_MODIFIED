@@ -1,4 +1,5 @@
 from neo4j import GraphDatabase
+import amrlib
 
 
 class Neo4J:
@@ -16,6 +17,14 @@ class Neo4J:
     def create_relationship(self):
         with self.driver.session() as session:
             session.write_transaction(self._create_relationship)
+
+    def create_amr_node(self, text):
+        with self.driver.session() as session:
+            session.write_transaction(self._create_amr_node, text)
+
+    def create_amr_rel(self, root, node):
+        with self.driver.session() as session:
+            session.write_transaction(self._create_amr_rel, root, node)
 
     @staticmethod
     def _import_csv(tx):
@@ -40,9 +49,70 @@ class Neo4J:
                "WHERE a.stance=b.stance "
                "MERGE (a)-[c:STANCE {name: a.stance}]->(b)")
 
+    @staticmethod
+    def _create_amr_node(tx, text):
+        tx.run("MERGE (:AMR {stuff: $text})", text=text)
+
+    @staticmethod
+    def _create_amr_rel(tx, root, node):
+        tx.run("MATCH (a:AMR), (b:AMR) "
+               "WHERE a.stuff=$rel1 AND b.stuff=$rel2 "
+               "MERGE (a)-[c:RELATION]->(b)", rel1=root, rel2=node)
+
+
+def create_amr(inputs):
+    check = True
+    i = 1
+    current_space = 0
+    obj.create_amr_node(inputs.splitlines()[i])
+    while i + 1 < len(inputs.splitlines()):
+        obj.create_amr_node(inputs.splitlines()[i + 1])
+        if len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' ')) > current_space:
+            # print(inputs.splitlines()[i] + " -> " + inputs.splitlines()[i + 1])
+            obj.create_amr_rel(inputs.splitlines()[i], inputs.splitlines()[i + 1])
+            current_space = len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' '))
+        elif len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' ')) == current_space:
+            j = i
+            while check:
+                if len(inputs.splitlines()[i - 1]) - len(inputs.splitlines()[i - 1].lstrip(' ')) < current_space:
+                    # print(inputs.splitlines()[i - 1] + " -> " + inputs.splitlines()[j + 1])
+                    obj.create_amr_rel(inputs.splitlines()[i - 1], inputs.splitlines()[j + 1])
+                    check = False
+                i = i - 1
+            i = j
+            check = True
+            current_space = len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' '))
+        else:
+            current_space = len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' '))
+            j = i
+            while check:
+                if len(inputs.splitlines()[i - 1]) - len(inputs.splitlines()[i - 1].lstrip(' ')) < current_space:
+                    # print(inputs.splitlines()[i - 1] + " -> " + inputs.splitlines()[j + 1])
+                    obj.create_amr_rel(inputs.splitlines()[i - 1], inputs.splitlines()[j + 1])
+                    check = False
+                i = i - 1
+            i = j
+            check = True
+            current_space = len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' '))
+        i = i + 1
+
 
 if __name__ == "__main__":
     obj = Neo4J("bolt://localhost:7687", "admin", "admin")
     # obj.import_csv()
-    obj.create_relationship()
+    # obj.create_relationship()
+    # obj.close()
+
+    # stuff to install
+    # Pytorch from https://pytorch.org/
+    # armlib with pip3 install amrlib
+    # a model from https://amrlib.readthedocs.io/en/latest/install/
+
+    stog = amrlib.load_stog_model()
+    graphs = stog.parse_sents(['"Obama\'s plan was criticized by some Democrats for including a heavy component of '
+                               'tax cuts'])
+    split = graphs[0]
+    print(split)
+    create_amr(split)
+
     obj.close()
