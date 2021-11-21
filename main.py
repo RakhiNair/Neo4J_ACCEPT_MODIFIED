@@ -18,9 +18,9 @@ class Neo4J:
     def close(self):
         self.driver.close()
 
-    def import_csv(self):
+    def create_node(self):
         with self.driver.session() as session:
-            session.write_transaction(self._import_csv)
+            session.write_transaction(self._create_node)
 
     def create_relationship(self):
         with self.driver.session() as session:
@@ -39,12 +39,12 @@ class Neo4J:
             session.write_transaction(self._connect_amr, text, info)
 
     @staticmethod
-    def _import_csv(tx):
+    def _create_node(tx):
         tx.run("LOAD CSV WITH HEADERS FROM $file AS row "
                "WITH row WHERE row.argument_id IS NOT NULL "
                "MERGE (:argument {argument_id: row.argument_id, frame_id: row.frame_id, "
                "frame: row.frame, topic_id: row.topic_id, topic: row.topic, premise: row.premise, stance: row.stance, "
-               "conclusion: row.conclusion}) "
+               "conclusion: row.conclusion, source: $file}) "
                "MERGE (:frame {frame_id: row.frame_id, name: row.frame}) "
                "MERGE (:topic {topic_id: row.topic_id, name: row.topic}) "
                "MERGE (:stance {stance: row.stance})", file=file)
@@ -159,6 +159,11 @@ def generate_amr(inputs):
     create_amr(split)
 
 
+def create_basic_database():
+    app.create_node()
+    app.create_relationship()
+
+
 if __name__ == "__main__":
     # Connection information
     scheme = "bolt"
@@ -171,9 +176,7 @@ if __name__ == "__main__":
     password = "admin"
 
     app = Neo4J(url, user, password)
-    # obj.import_csv()
-    # obj.create_relationship()
-    # obj.close()
+    create_basic_database()
 
     # stuff to install
     # Pytorch from https://pytorch.org/
@@ -192,5 +195,5 @@ if __name__ == "__main__":
 
     app.close()
 
-    # add different types, add source, change relationship names, clean up code
+    # add different types, change relationship names, clean up code
     # Multisentence, fix AMR output, more comments, better naming, fix references, look at ""
