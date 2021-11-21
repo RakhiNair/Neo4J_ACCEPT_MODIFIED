@@ -2,6 +2,13 @@ from neo4j import GraphDatabase
 import amrlib
 import pandas as pd
 
+# NEO4J Import
+# local file in import folder, otherwise https://neo4j.com/developer/kb/import-csv-locations/
+file = 'file:///Webis-argument-framing.csv'
+
+# Pandas Import for AMR generation
+pandas_file = "O:/Arbeit/Webis-argument-framing.csv"
+
 
 class Neo4J:
 
@@ -33,14 +40,14 @@ class Neo4J:
 
     @staticmethod
     def _import_csv(tx):
-        tx.run("LOAD CSV WITH HEADERS FROM 'file:///Webis-argument-framing.csv' AS row "
+        tx.run("LOAD CSV WITH HEADERS FROM $file AS row "
                "WITH row WHERE row.argument_id IS NOT NULL "
                "MERGE (:argument {argument_id: row.argument_id, frame_id: row.frame_id, "
                "frame: row.frame, topic_id: row.topic_id, topic: row.topic, premise: row.premise, stance: row.stance, "
                "conclusion: row.conclusion}) "
                "MERGE (:frame {frame_id: row.frame_id, name: row.frame}) "
                "MERGE (:topic {topic_id: row.topic_id, name: row.topic}) "
-               "MERGE (:stance {stance: row.stance})")
+               "MERGE (:stance {stance: row.stance})", file=file)
 
     @staticmethod
     def _create_relationship(tx):
@@ -62,7 +69,7 @@ class Neo4J:
     def _create_amr_rel(tx, root, node, info):
         tx.run("MERGE (a:AMR {name: $name1, type: $type1, relationship: $rel1, argument_id: $id}) "
                "MERGE (b:AMR {name: $name2, type: $type2, relationship: $rel2, argument_id: $id}) "
-               "MERGE (a)-[RELATIONSHIP {name: b.relationship}]->(b)", name1=root[1], type1=root[0], name2=node[1],
+               "MERGE (a)-[c:RELATIONSHIP {name: b.relationship}]->(b)", name1=root[1], type1=root[0], name2=node[1],
                type2=node[0], rel1=root[2], rel2=node[2], id=info)
 
     @staticmethod
@@ -108,12 +115,12 @@ def create_amr(temp_inputs):
     other_info = temp_inputs[1]
     check = True
     i = 1
-    obj.connect_amr(create_amr_help(inputs.splitlines()[i]), other_info)
+    app.connect_amr(create_amr_help(inputs.splitlines()[i]), other_info)
     current_space = 0
     while i + 1 < len(inputs.splitlines()):
         if len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' ')) > current_space:
             # print(inputs.splitlines()[i] + " -> " + inputs.splitlines()[i + 1])
-            obj.create_amr_rel(create_amr_help(inputs.splitlines()[i]), create_amr_help(inputs.splitlines()[i + 1]),
+            app.create_amr_rel(create_amr_help(inputs.splitlines()[i]), create_amr_help(inputs.splitlines()[i + 1]),
                                other_info)
             current_space = len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' '))
         elif len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' ')) == current_space:
@@ -121,7 +128,7 @@ def create_amr(temp_inputs):
             while check:
                 if len(inputs.splitlines()[i - 1]) - len(inputs.splitlines()[i - 1].lstrip(' ')) < current_space:
                     # print(inputs.splitlines()[i - 1] + " -> " + inputs.splitlines()[j + 1])
-                    obj.create_amr_rel(create_amr_help(inputs.splitlines()[i - 1]),
+                    app.create_amr_rel(create_amr_help(inputs.splitlines()[i - 1]),
                                        create_amr_help(inputs.splitlines()[j + 1]), other_info)
                     check = False
                 i = i - 1
@@ -134,7 +141,7 @@ def create_amr(temp_inputs):
             while check:
                 if len(inputs.splitlines()[i - 1]) - len(inputs.splitlines()[i - 1].lstrip(' ')) < current_space:
                     # print(inputs.splitlines()[i - 1] + " -> " + inputs.splitlines()[j + 1])
-                    obj.create_amr_rel(create_amr_help(inputs.splitlines()[i - 1]),
+                    app.create_amr_rel(create_amr_help(inputs.splitlines()[i - 1]),
                                        create_amr_help(inputs.splitlines()[j + 1]), other_info)
                     check = False
                 i = i - 1
@@ -153,7 +160,17 @@ def generate_amr(inputs):
 
 
 if __name__ == "__main__":
-    obj = Neo4J("bolt://localhost:7687", "admin", "admin")
+    # Connection information
+    scheme = "bolt"
+    # localhost for local host
+    host_name = "localhost"
+    # 7687 for local host
+    port = "7687"
+    url = "{scheme}://{host_name}:{port}".format(scheme=scheme, host_name=host_name, port=port)
+    user = "admin"
+    password = "admin"
+
+    app = Neo4J(url, user, password)
     # obj.import_csv()
     # obj.create_relationship()
     # obj.close()
@@ -163,16 +180,17 @@ if __name__ == "__main__":
     # amrlib with pip3 install amrlib
     # a model from https://amrlib.readthedocs.io/en/latest/install/
 
-    csv_data = pd.read_csv("O:/Arbeit/Webis-argument-framing.csv")
+    csv_data = pd.read_csv(pandas_file)
 
     stog = amrlib.load_stog_model()
     # int64 not supported
     i = 0
-    while i < 6:
+    while i < 1:
         test = [csv_data.premise[i], str(i), stog]
         generate_amr(test)
         i += 1
 
-    obj.close()
+    app.close()
 
-
+    # add different types, add source, change relationship names, clean up code
+    # Multisentence, fix AMR output, more comments, better naming, fix references, look at ""
