@@ -35,9 +35,9 @@ class Neo4J:
         with self.driver.session() as session:
             session.write_transaction(self._create_amr_rel, root, node, info)
 
-    def connect_amr(self, text, info):
+    def connect_amr(self, text, info, path):
         with self.driver.session() as session:
-            session.write_transaction(self._connect_amr, text, info)
+            session.write_transaction(self._connect_amr, text, info, path)
 
     @staticmethod
     def _create_node(tx):
@@ -79,12 +79,12 @@ class Neo4J:
                type2=node[0], rel1=root[2], rel2=node[2], id=info)
 
     @staticmethod
-    def _connect_amr(tx, text, info):
+    def _connect_amr(tx, text, info, path):
         tx.run("MERGE (a:amr {name: $name1, type: $type1, relationship: $rel1, argument_id: $id}) ", name1=text[1],
                type1=text[0], rel1=text[2], id=info)
         tx.run("MATCH (a:amr), (b:amr) "
                "WHERE a.argument_id=b.argument_id AND a.source=$file AND b.name=$name "
-               "MERGE (a)-[:PREMISE]->(b)", file=file, name=text[1])
+               f"MERGE (a)-[:{path}]->(b)", file=file, name=text[1])
 
 
 def create_amr_help(inputs):
@@ -120,7 +120,7 @@ def create_amr(amr_creation_input, path):
     arg_id = amr_creation_input[1]
     check = True
     i = 1
-    app.connect_amr(create_amr_help(graph.splitlines()[i]), arg_id)
+    app.connect_amr(create_amr_help(graph.splitlines()[i]), arg_id, path)
     current_space = 0
     while i + 1 < len(graph.splitlines()):
         if len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' ')) > current_space:
@@ -178,7 +178,7 @@ def generate_some_amr(model, csv_input, iterations):
         graphs = model.parse_sents([csv_input.premise[i]])  # creates AMR graph
         print(graphs[0])  # control output
         amr_creation_input = [graphs[0], i]  # int64 not supported
-        create_amr(amr_creation_input, "premise")
+        create_amr(amr_creation_input, "PREMISE")
         i += 1
     print("AMR took", time.time() - start_time, "secs to run")
 
