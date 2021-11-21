@@ -49,7 +49,8 @@ class Neo4J:
                "conclusion: row.conclusion, source: $file}) "
                "MERGE (:frame {frame_id: toInteger(row.frame_id), name: row.frame}) "
                "MERGE (:topic {topic_id: toInteger(row.topic_id), name: row.topic}) "
-               "MERGE (:stance {stance: row.stance})", file=file)
+               "MERGE (:stance {stance: row.stance}) "
+               "MERGE (:amr {argument_id: toInteger(row.argument_id), source: $file, name: $amr})", file=file, amr="AMR")
 
     @staticmethod
     def _create_relationship(tx):
@@ -62,6 +63,9 @@ class Neo4J:
         tx.run("MATCH (a:argument), (b:stance) "
                "WHERE a.stance=b.stance "
                "MERGE (a)-[c:STANCE {name: a.stance}]->(b)")
+        tx.run("MATCH (a:argument), (b:amr) "
+               "WHERE a.argument_id=b.argument_id "
+               "MERGE (a)-[c:AMR]->(b)")
 
     @staticmethod
     def _create_amr_node(tx, text):
@@ -168,6 +172,18 @@ def create_basic_database():
     print("Basic database took", time.time() - start_time, "secs to run")
 
 
+def generate_some_amr(model, csv_input, iterations):
+    start_time = time.time()
+    i = 0
+    while i < iterations:
+        graphs = model.parse_sents([csv_input.premise[i]])  # creates AMR graph
+        print(graphs[0])  # control output
+        amr_creation_input = [graphs[0], i]
+        create_amr(amr_creation_input)
+        i += 1
+    print("AMR took", time.time() - start_time, "secs to run")
+
+
 if __name__ == "__main__":
     # Connection information
     scheme = "bolt"
@@ -182,15 +198,14 @@ if __name__ == "__main__":
     app = Neo4J(url, user, password)
     create_basic_database()
 
-    # stuff to install
-    # Pytorch from https://pytorch.org/
-    # amrlib with pip3 install amrlib
-    # a model from https://amrlib.readthedocs.io/en/latest/install/
+    # AMR models: https://amrlib.readthedocs.io/en/latest/install/
+    amr_model = amrlib.load_stog_model()
+    # load csv with pandas for amr generation
+    csv_data = pd.read_csv(pandas_file)
 
-    # csv_data = pd.read_csv(pandas_file)
+    # for testing
+    # generate_some_amr(amr_model, csv_data, 1)
 
-    # stog = amrlib.load_stog_model()
-    # int64 not supported
     # i = 0
     # while i < 1:
     #    test = [csv_data.premise[i], str(i), stog]
@@ -199,7 +214,5 @@ if __name__ == "__main__":
 
     app.close()
 
-    # add different types, change relationship names, clean up code
+    # change relationship names, clean up code
     # Multisentence, fix AMR output, more comments, better naming, fix references, look at ""
-
-    # 34s empty database, 103s filled database, slightly more with toInteger
