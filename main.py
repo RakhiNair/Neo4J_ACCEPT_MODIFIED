@@ -1,6 +1,7 @@
 from neo4j import GraphDatabase
 import amrlib
 import pandas as pd
+import time
 
 # NEO4J Import
 # local file in import folder, otherwise https://neo4j.com/developer/kb/import-csv-locations/
@@ -42,18 +43,19 @@ class Neo4J:
     def _create_node(tx):
         tx.run("LOAD CSV WITH HEADERS FROM $file AS row "
                "WITH row WHERE row.argument_id IS NOT NULL "
-               "MERGE (:argument {argument_id: row.argument_id, frame_id: row.frame_id, "
-               "frame: row.frame, topic_id: row.topic_id, topic: row.topic, premise: row.premise, stance: row.stance, "
+               "MERGE (:argument {argument_id: toInteger(row.argument_id), frame_id: toInteger(row.frame_id), "
+               "frame: row.frame, topic_id: toInteger(row.topic_id), topic: row.topic, premise: row.premise, "
+               "stance: row.stance, "
                "conclusion: row.conclusion, source: $file}) "
-               "MERGE (:frame {frame_id: row.frame_id, name: row.frame}) "
-               "MERGE (:topic {topic_id: row.topic_id, name: row.topic}) "
+               "MERGE (:frame {frame_id: toInteger(row.frame_id), name: row.frame}) "
+               "MERGE (:topic {topic_id: toInteger(row.topic_id), name: row.topic}) "
                "MERGE (:stance {stance: row.stance})", file=file)
 
     @staticmethod
     def _create_relationship(tx):
         tx.run("MATCH (a:argument), (b:frame) "
                "WHERE a.frame_id=b.frame_id "
-               "MERGE (a)-[c:CLASSIFICATION {name: a.topic + '<->' + b.name}]->(b)")
+               "MERGE (a)-[c:FRAME {name: a.topic + '<->' + b.name}]->(b)")
         tx.run("MATCH (a:argument), (b:topic) "
                "WHERE a.topic_id=b.topic_id "
                "MERGE (a)-[c:TOPIC {name: a.topic}]->(b)")
@@ -160,8 +162,10 @@ def generate_amr(inputs):
 
 
 def create_basic_database():
+    start_time = time.time()
     app.create_node()
     app.create_relationship()
+    print("Basic database took", time.time() - start_time, "secs to run")
 
 
 if __name__ == "__main__":
@@ -183,17 +187,19 @@ if __name__ == "__main__":
     # amrlib with pip3 install amrlib
     # a model from https://amrlib.readthedocs.io/en/latest/install/
 
-    csv_data = pd.read_csv(pandas_file)
+    # csv_data = pd.read_csv(pandas_file)
 
-    stog = amrlib.load_stog_model()
+    # stog = amrlib.load_stog_model()
     # int64 not supported
-    i = 0
-    while i < 1:
-        test = [csv_data.premise[i], str(i), stog]
-        generate_amr(test)
-        i += 1
+    # i = 0
+    # while i < 1:
+    #    test = [csv_data.premise[i], str(i), stog]
+    #    generate_amr(test)
+    #    i += 1
 
     app.close()
 
     # add different types, change relationship names, clean up code
     # Multisentence, fix AMR output, more comments, better naming, fix references, look at ""
+
+    # 34s empty database, 103s filled database, slightly more with toInteger
