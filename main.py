@@ -69,23 +69,22 @@ class Neo4J:
 
     @staticmethod
     def _create_amr_node(tx, text):
-        tx.run("MERGE (:AMR {name: $name, type: $type})", name=text[1], type=text[0])
+        tx.run("MERGE (:amr {name: $name, type: $type})", name=text[1], type=text[0])
 
     @staticmethod
     def _create_amr_rel(tx, root, node, info):
-        tx.run("MERGE (a:AMR {name: $name1, type: $type1, relationship: $rel1, argument_id: $id}) "
-               "MERGE (b:AMR {name: $name2, type: $type2, relationship: $rel2, argument_id: $id}) "
+        tx.run("MERGE (a:amr {name: $name1, type: $type1, relationship: $rel1, argument_id: $id}) "
+               "MERGE (b:amr {name: $name2, type: $type2, relationship: $rel2, argument_id: $id}) "
                "MERGE (a)-[c:RELATIONSHIP {name: b.relationship}]->(b)", name1=root[1], type1=root[0], name2=node[1],
                type2=node[0], rel1=root[2], rel2=node[2], id=info)
 
     @staticmethod
     def _connect_amr(tx, text, info):
-        tx.run("MERGE (a:AMR {name: $name1, type: $type1, relationship: $rel1, argument_id: $id}) ", name1=text[1],
+        tx.run("MERGE (a:amr {name: $name1, type: $type1, relationship: $rel1, argument_id: $id}) ", name1=text[1],
                type1=text[0], rel1=text[2], id=info)
-        tx.run("MATCH (a:argument), (b:AMR) "
-               "WHERE a.argument_id=b.argument_id AND b.name=$name1 AND b.type=$type1 AND b.relationship=$rel1 AND "
-               "b.argument_id=$id "
-               "MERGE (a)-[c:AMR]->(b)", name1=text[1], type1=text[0], rel1=text[2], id=info)
+        tx.run("MATCH (a:amr), (b:amr) "
+               "WHERE a.argument_id=b.argument_id AND a.source=$file AND b.name=$name "
+               "MERGE (a)-[:PREMISE]->(b)", file=file, name=text[1])
 
 
 def create_amr_help(inputs):
@@ -115,45 +114,45 @@ def create_amr_help(inputs):
     return info_list
 
 
-def create_amr(temp_inputs):
+def create_amr(amr_creation_input, path):
     # [AMR, id]
-    inputs = temp_inputs[0]
-    other_info = temp_inputs[1]
+    graph = amr_creation_input[0]
+    arg_id = amr_creation_input[1]
     check = True
     i = 1
-    app.connect_amr(create_amr_help(inputs.splitlines()[i]), other_info)
+    app.connect_amr(create_amr_help(graph.splitlines()[i]), arg_id)
     current_space = 0
-    while i + 1 < len(inputs.splitlines()):
-        if len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' ')) > current_space:
+    while i + 1 < len(graph.splitlines()):
+        if len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' ')) > current_space:
             # print(inputs.splitlines()[i] + " -> " + inputs.splitlines()[i + 1])
-            app.create_amr_rel(create_amr_help(inputs.splitlines()[i]), create_amr_help(inputs.splitlines()[i + 1]),
-                               other_info)
-            current_space = len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' '))
-        elif len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' ')) == current_space:
+            app.create_amr_rel(create_amr_help(graph.splitlines()[i]), create_amr_help(graph.splitlines()[i + 1]),
+                               arg_id)
+            current_space = len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' '))
+        elif len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' ')) == current_space:
             j = i
             while check:
-                if len(inputs.splitlines()[i - 1]) - len(inputs.splitlines()[i - 1].lstrip(' ')) < current_space:
+                if len(graph.splitlines()[i - 1]) - len(graph.splitlines()[i - 1].lstrip(' ')) < current_space:
                     # print(inputs.splitlines()[i - 1] + " -> " + inputs.splitlines()[j + 1])
-                    app.create_amr_rel(create_amr_help(inputs.splitlines()[i - 1]),
-                                       create_amr_help(inputs.splitlines()[j + 1]), other_info)
+                    app.create_amr_rel(create_amr_help(graph.splitlines()[i - 1]),
+                                       create_amr_help(graph.splitlines()[j + 1]), arg_id)
                     check = False
                 i = i - 1
             i = j
             check = True
-            current_space = len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' '))
+            current_space = len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' '))
         else:
-            current_space = len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' '))
+            current_space = len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' '))
             j = i
             while check:
-                if len(inputs.splitlines()[i - 1]) - len(inputs.splitlines()[i - 1].lstrip(' ')) < current_space:
+                if len(graph.splitlines()[i - 1]) - len(graph.splitlines()[i - 1].lstrip(' ')) < current_space:
                     # print(inputs.splitlines()[i - 1] + " -> " + inputs.splitlines()[j + 1])
-                    app.create_amr_rel(create_amr_help(inputs.splitlines()[i - 1]),
-                                       create_amr_help(inputs.splitlines()[j + 1]), other_info)
+                    app.create_amr_rel(create_amr_help(graph.splitlines()[i - 1]),
+                                       create_amr_help(graph.splitlines()[j + 1]), arg_id)
                     check = False
                 i = i - 1
             i = j
             check = True
-            current_space = len(inputs.splitlines()[i + 1]) - len(inputs.splitlines()[i + 1].lstrip(' '))
+            current_space = len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' '))
         i = i + 1
 
 
@@ -162,7 +161,7 @@ def generate_amr(inputs):
     graphs = inputs[2].parse_sents([inputs[0]])
     split = [graphs[0], inputs[1]]
     print(graphs[0])
-    create_amr(split)
+    create_amr(split, "premise")
 
 
 def create_basic_database():
@@ -178,8 +177,8 @@ def generate_some_amr(model, csv_input, iterations):
     while i < iterations:
         graphs = model.parse_sents([csv_input.premise[i]])  # creates AMR graph
         print(graphs[0])  # control output
-        amr_creation_input = [graphs[0], i]
-        create_amr(amr_creation_input)
+        amr_creation_input = [graphs[0], i]  # int64 not supported
+        create_amr(amr_creation_input, "premise")
         i += 1
     print("AMR took", time.time() - start_time, "secs to run")
 
@@ -196,7 +195,7 @@ if __name__ == "__main__":
     password = "admin"
 
     app = Neo4J(url, user, password)
-    create_basic_database()
+    # create_basic_database()
 
     # AMR models: https://amrlib.readthedocs.io/en/latest/install/
     amr_model = amrlib.load_stog_model()
@@ -204,7 +203,7 @@ if __name__ == "__main__":
     csv_data = pd.read_csv(pandas_file)
 
     # for testing
-    # generate_some_amr(amr_model, csv_data, 1)
+    generate_some_amr(amr_model, csv_data, 1)
 
     # i = 0
     # while i < 1:
