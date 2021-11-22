@@ -180,11 +180,20 @@ def generate_some_amr(model, csv_input, iterations):
         amr_creation_input = [graphs[0], i]  # int64 not supported
         create_amr(amr_creation_input, "PREMISE")
         i += 1
+    i = 0
+    while i < iterations:
+        graphs = model.parse_sents([csv_input.conclusion[i]])  # creates AMR graph
+        print(graphs[0])  # control output
+        amr_creation_input = [graphs[0], i]  # int64 not supported
+        create_amr(amr_creation_input, "CONCLUSION")
+        i += 1
     print("AMR took", time.time() - start_time, "secs to run")
 
 
 if __name__ == "__main__":
+
     # Connection information
+
     scheme = "bolt"
     # localhost for local host
     host_name = "localhost"
@@ -205,13 +214,6 @@ if __name__ == "__main__":
     # for testing
     generate_some_amr(amr_model, csv_data, 1)
 
-    # i = 0
-    # while i < 1:
-    #    test = [csv_data.premise[i], str(i), stog]
-    #    generate_amr(test)
-    #    i += 1
-
     app.close()
 
-    # change relationship names, clean up code
-    # Multisentence, fix AMR output, more comments, better naming, fix references, look at ""
+    # change relationship names, clean up code, Multisentence, fix AMR output, more comments, better naming, look at ""
