@@ -300,4 +300,4 @@ if __name__ == "__main__":
 
     app.close()
 
-    # change relationship names, clean up code, Multisentence, fix AMR output, more comments, better naming, look at ""
+    # clean up code, Multisentence, more comments, better naming, look at ""
