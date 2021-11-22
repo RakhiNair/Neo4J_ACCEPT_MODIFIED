@@ -28,9 +28,9 @@ class Neo4J:
         with self.driver.session() as session:
             session.write_transaction(self._create_relationship)
 
-    def create_amr_node(self, text):
+    def create_amr(self, root, node):
         with self.driver.session() as session:
-            session.write_transaction(self._create_amr_node, text)
+            session.write_transaction(self._create_amr, root, node)
 
     def create_amr_rel(self, root, node, info):
         with self.driver.session() as session:
@@ -69,8 +69,13 @@ class Neo4J:
                "MERGE (a)-[c:AMR]->(b)")
 
     @staticmethod
-    def _create_amr_node(tx, text):
-        tx.run("MERGE (:amr {name: $name, type: $type})", name=text[1], type=text[0])
+    def _create_amr(tx, root, node):
+        tx.run("MERGE (a:amr {argument_id: $id, source: $source, type: $type, name: $name1, "
+               "identifier: $ident1, relationship: $rel1}) "
+               "MERGE (b:amr {argument_id: $id, source: $source, type: $type, name: $name2, "
+               "identifier: $ident2, relationship: $rel2}) "
+               f"MERGE (a)-[:{node[6]}]->(b)", id=root[0], source=root[1], type=root[2], name1=root[3], name2=node[3],
+               ident1=root[4], ident2=node[4], rel1=root[5], rel2=node[5])
 
     @staticmethod
     def _create_amr_rel(tx, root, node, info):
@@ -198,15 +203,39 @@ def create_some_amr(amr_creation_input, path):
                     name = line[line.find(":polarity") + 10:]
             else:
                 if line.find(")") > -1:
-                    identifier = raw_line[raw_line.find(" ") + 1:line.find(")")]
+                    identifier = raw_line[raw_line.find(" ") + 1:raw_line.find(")")]
                 else:
                     identifier = raw_line[raw_line.find(" ") + 1:]
                 name = "None"
         temp_array[i-1] = [arg_id, file, path, name, identifier, rel, rel_label, inserts]
         i += 1
-    i = 0
+    i = 1
     while i < len(temp_array):
-        print(temp_array[i])
+        found_root = False
+        found_ref = False
+        j = i - 1
+        ref = i - 1
+        while not found_root:
+            if temp_array[i][7] > temp_array[j][7]:
+                if temp_array[i][3] == "None":
+                    while not found_ref:
+                        if ref == 0:
+                            temp_array[i][3] = temp_array[i][4]
+                            temp_array[i][4] = "None"
+                            app.create_amr(temp_array[j], temp_array[i])
+                            found_ref = True
+                            found_root = True
+                        elif temp_array[ref][4] == temp_array[i][4]:
+                            app.create_amr(temp_array[j], temp_array[ref])
+                            found_ref = True
+                            found_root = True
+                        else:
+                            ref -= 1
+                else:
+                    app.create_amr(temp_array[j], temp_array[i])
+                    found_root = True
+            else:
+                j -= 1
         i += 1
 
 
