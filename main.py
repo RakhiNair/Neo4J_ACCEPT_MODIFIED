@@ -2,6 +2,7 @@ from neo4j import GraphDatabase
 import amrlib
 import pandas as pd
 import time
+import numpy
 
 # NEO4J Import
 # local file in import folder, otherwise https://neo4j.com/developer/kb/import-csv-locations/
@@ -115,7 +116,7 @@ def create_amr_help(inputs):
 
 
 def create_amr(amr_creation_input, path):
-    # [AMR, id]
+    # [AMR, id], premise/conclusion
     graph = amr_creation_input[0]
     arg_id = amr_creation_input[1]
     check = True
@@ -156,6 +157,59 @@ def create_amr(amr_creation_input, path):
         i = i + 1
 
 
+def create_some_amr(amr_creation_input, path):
+    # [AMR, id], premise/conclusion
+    graph = amr_creation_input[0]
+    arg_id = amr_creation_input[1]
+    # [id, source, type, name, identifier, relationship, relationship label, inserts)
+    temp_array = numpy.empty(shape=(len(graph.splitlines()) - 1, 8), dtype=object)
+    # i = 0 is the raw sentence
+    i = 1
+    while i < len(graph.splitlines()):
+        line = graph.splitlines()[i]
+        raw_line = line.lstrip(' ')
+        # find amount of inserts
+        inserts = len(line) - len(line.lstrip(' '))
+        # name of relationship
+        rel = raw_line[(raw_line.find(":")):(raw_line.find(' '))]
+        rel_label = rel[1:].replace("-", "")
+        # name and identifier
+        if line.find("(") > -1:
+            identifier_line = line[line.find("("):]
+            identifier = identifier_line[1:identifier_line.find(" ")]
+            name_line = line[line.find("/ "):]
+            if name_line.find(")") > -1:
+                name = name_line[2:name_line.find(")")]
+            else:
+                name = name_line[2:]
+        else:
+            identifier = "None"
+            if line.find("\"") > -1:
+                name = line[line.find("\""):line.rfind("\"") + 1]
+            elif line.find(":quant") > -1:
+                if line.find(")") > -1:
+                    name = line[line.find(":quant") + 7:line.find(")")]
+                else:
+                    name = line[line.find(":quant") + 7:]
+            elif line.find(":polarity") > -1:
+                if line.find(")") > -1:
+                    name = line[line.find(":polarity") + 10:line.find(")")]
+                else:
+                    name = line[line.find(":polarity") + 10:]
+            else:
+                if line.find(")") > -1:
+                    identifier = raw_line[raw_line.find(" ") + 1:line.find(")")]
+                else:
+                    identifier = raw_line[raw_line.find(" ") + 1:]
+                name = "None"
+        temp_array[i-1] = [arg_id, file, path, name, identifier, rel, rel_label, inserts]
+        i += 1
+    i = 0
+    while i < len(temp_array):
+        print(temp_array[i])
+        i += 1
+
+
 def generate_amr(inputs):
     # [premise, id]
     graphs = inputs[2].parse_sents([inputs[0]])
@@ -175,22 +229,23 @@ def generate_some_amr(model, csv_input, iterations):
     start_time = time.time()
     i = 0
     while i < iterations:
+        # premise
         graphs = model.parse_sents([csv_input.premise[i]])  # creates AMR graph
         print(graphs[0])  # control output
         amr_creation_input = [graphs[0], i]  # int64 not supported
-        create_amr(amr_creation_input, "PREMISE")
-        i += 1
-    i = 0
-    while i < iterations:
+        create_some_amr(amr_creation_input, "PREMISE")
+        # conclusion
         graphs = model.parse_sents([csv_input.conclusion[i]])  # creates AMR graph
         print(graphs[0])  # control output
         amr_creation_input = [graphs[0], i]  # int64 not supported
-        create_amr(amr_creation_input, "CONCLUSION")
+        create_some_amr(amr_creation_input, "CONCLUSION")
         i += 1
     print("AMR took", time.time() - start_time, "secs to run")
 
 
 if __name__ == "__main__":
+
+    numpy.set_printoptions(linewidth=320)
 
     # Connection information
 
