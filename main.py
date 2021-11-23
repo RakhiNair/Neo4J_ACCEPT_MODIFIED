@@ -32,13 +32,9 @@ class Neo4J:
         with self.driver.session() as session:
             session.write_transaction(self._create_amr, root, node)
 
-    def create_amr_rel(self, root, node, info):
+    def connect_amr(self, node):
         with self.driver.session() as session:
-            session.write_transaction(self._create_amr_rel, root, node, info)
-
-    def connect_amr(self, text, info, path):
-        with self.driver.session() as session:
-            session.write_transaction(self._connect_amr, text, info, path)
+            session.write_transaction(self._connect_amr, node)
 
     @staticmethod
     def _create_node(tx):
@@ -51,7 +47,8 @@ class Neo4J:
                "MERGE (:frame {frame_id: toInteger(row.frame_id), name: row.frame}) "
                "MERGE (:topic {topic_id: toInteger(row.topic_id), name: row.topic}) "
                "MERGE (:stance {stance: row.stance}) "
-               "MERGE (:amr {argument_id: toInteger(row.argument_id), source: $file, name: $amr})", file=file, amr="AMR")
+               "MERGE (:amr {argument_id: toInteger(row.argument_id), source: $file, name: $amr})", file=file,
+               amr="AMR")
 
     @staticmethod
     def _create_relationship(tx):
@@ -65,8 +62,8 @@ class Neo4J:
                "WHERE a.stance=b.stance "
                "MERGE (a)-[c:STANCE {name: a.stance}]->(b)")
         tx.run("MATCH (a:argument), (b:amr) "
-               "WHERE a.argument_id=b.argument_id "
-               "MERGE (a)-[c:AMR]->(b)")
+               "WHERE a.argument_id=b.argument_id AND a.source=b.source AND b.name=$name "
+               "MERGE (a)-[c:AMR]->(b)", name="AMR")
 
     @staticmethod
     def _create_amr(tx, root, node):
@@ -78,88 +75,12 @@ class Neo4J:
                ident1=root[4], ident2=node[4], rel1=root[5], rel2=node[5])
 
     @staticmethod
-    def _create_amr_rel(tx, root, node, info):
-        tx.run("MERGE (a:amr {name: $name1, type: $type1, relationship: $rel1, argument_id: $id}) "
-               "MERGE (b:amr {name: $name2, type: $type2, relationship: $rel2, argument_id: $id}) "
-               "MERGE (a)-[c:RELATIONSHIP {name: b.relationship}]->(b)", name1=root[1], type1=root[0], name2=node[1],
-               type2=node[0], rel1=root[2], rel2=node[2], id=info)
-
-    @staticmethod
-    def _connect_amr(tx, text, info, path):
-        tx.run("MERGE (a:amr {name: $name1, type: $type1, relationship: $rel1, argument_id: $id}) ", name1=text[1],
-               type1=text[0], rel1=text[2], id=info)
+    def _connect_amr(tx, node):
         tx.run("MATCH (a:amr), (b:amr) "
-               "WHERE a.argument_id=b.argument_id AND a.source=$file AND b.name=$name "
-               f"MERGE (a)-[:{path}]->(b)", file=file, name=text[1])
-
-
-def create_amr_help(inputs):
-    info_list = []  # 0 = type, 1 = name
-    if inputs.find("(") != -1:
-        info_list.append(inputs[inputs.find("(") + 1:inputs.rfind(" ") - 2])
-        if inputs.find(")") == -1:
-            info_list.append(inputs[inputs.find("/ ") + 2:])
-        else:
-            info_list.append(inputs[inputs.find("/ ") + 2:inputs.find(")")])
-    else:
-        if inputs.find(" \"") == -1:
-            info_list.append(inputs[inputs.rfind(" ") + 1:])
-            info_list.append("None")
-        else:
-            info_list.append("None")
-            info_list.append(inputs[inputs.find(" \"") + 2:inputs.find(")") - 1])
-    # relations
-    if inputs.find(":") == -1:
-        info_list.append("No relationships")
-    else:
-        if inputs.find("(") != -1:
-            info_list.append(inputs[inputs.find(":"):inputs.find("(") - 1])
-        else:
-            info_list.append(inputs[inputs.find(":"):inputs.rfind(" ")])
-
-    return info_list
-
-
-def create_amr(amr_creation_input, path):
-    # [AMR, id], premise/conclusion
-    graph = amr_creation_input[0]
-    arg_id = amr_creation_input[1]
-    check = True
-    i = 1
-    app.connect_amr(create_amr_help(graph.splitlines()[i]), arg_id, path)
-    current_space = 0
-    while i + 1 < len(graph.splitlines()):
-        if len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' ')) > current_space:
-            # print(inputs.splitlines()[i] + " -> " + inputs.splitlines()[i + 1])
-            app.create_amr_rel(create_amr_help(graph.splitlines()[i]), create_amr_help(graph.splitlines()[i + 1]),
-                               arg_id)
-            current_space = len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' '))
-        elif len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' ')) == current_space:
-            j = i
-            while check:
-                if len(graph.splitlines()[i - 1]) - len(graph.splitlines()[i - 1].lstrip(' ')) < current_space:
-                    # print(inputs.splitlines()[i - 1] + " -> " + inputs.splitlines()[j + 1])
-                    app.create_amr_rel(create_amr_help(graph.splitlines()[i - 1]),
-                                       create_amr_help(graph.splitlines()[j + 1]), arg_id)
-                    check = False
-                i = i - 1
-            i = j
-            check = True
-            current_space = len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' '))
-        else:
-            current_space = len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' '))
-            j = i
-            while check:
-                if len(graph.splitlines()[i - 1]) - len(graph.splitlines()[i - 1].lstrip(' ')) < current_space:
-                    # print(inputs.splitlines()[i - 1] + " -> " + inputs.splitlines()[j + 1])
-                    app.create_amr_rel(create_amr_help(graph.splitlines()[i - 1]),
-                                       create_amr_help(graph.splitlines()[j + 1]), arg_id)
-                    check = False
-                i = i - 1
-            i = j
-            check = True
-            current_space = len(graph.splitlines()[i + 1]) - len(graph.splitlines()[i + 1].lstrip(' '))
-        i = i + 1
+               "WHERE a.argument_id=b.argument_id=$id AND a.source=b.source=$source AND a.name=$name2 AND "
+               "b.name=$name1 AND b.type=$type AND b.identifier=$ident AND b.relationship=$rel "
+               f"MERGE (a)-[:{node[2]}]->(b)", id=node[0], source=node[1], type=node[2], name1=node[3],
+               ident=node[4], rel=node[5], name2="AMR")
 
 
 def create_some_amr(amr_creation_input, path):
@@ -207,8 +128,9 @@ def create_some_amr(amr_creation_input, path):
                 else:
                     identifier = raw_line[raw_line.find(" ") + 1:]
                 name = "None"
-        temp_array[i-1] = [arg_id, file, path, name, identifier, rel, rel_label, inserts]
+        temp_array[i - 1] = [arg_id, file, path, name, identifier, rel, rel_label, inserts]
         i += 1
+    # connect references
     i = 1
     while i < len(temp_array):
         found_root = False
@@ -237,14 +159,7 @@ def create_some_amr(amr_creation_input, path):
             else:
                 j -= 1
         i += 1
-
-
-def generate_amr(inputs):
-    # [premise, id]
-    graphs = inputs[2].parse_sents([inputs[0]])
-    split = [graphs[0], inputs[1]]
-    print(graphs[0])
-    create_amr(split, "premise")
+    app.connect_amr(temp_array[0])
 
 
 def create_basic_database():
@@ -273,7 +188,6 @@ def generate_some_amr(model, csv_input, iterations):
 
 
 if __name__ == "__main__":
-
     numpy.set_printoptions(linewidth=320)
 
     # Connection information
@@ -288,7 +202,7 @@ if __name__ == "__main__":
     password = "admin"
 
     app = Neo4J(url, user, password)
-    # create_basic_database()
+    create_basic_database()
 
     # AMR models: https://amrlib.readthedocs.io/en/latest/install/
     amr_model = amrlib.load_stog_model()
@@ -296,8 +210,8 @@ if __name__ == "__main__":
     csv_data = pd.read_csv(pandas_file)
 
     # for testing
-    generate_some_amr(amr_model, csv_data, 1)
+    generate_some_amr(amr_model, csv_data, 5)
 
     app.close()
 
-    # clean up code, Multisentence, more comments, better naming, look at ""
+    # Multisentence, look at ""
