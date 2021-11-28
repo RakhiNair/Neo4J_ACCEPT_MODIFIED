@@ -3,6 +3,7 @@ import amrlib
 import pandas as pd
 import time
 import numpy
+from nltk.tokenize import sent_tokenize
 
 # NEO4J Import
 # local file in import folder, otherwise https://neo4j.com/developer/kb/import-csv-locations/
@@ -48,7 +49,7 @@ class Neo4J:
                "MERGE (:topic {topic_id: toInteger(row.topic_id), name: row.topic}) "
                "MERGE (:stance {stance: row.stance}) "
                "MERGE (:amr {argument_id: toInteger(row.argument_id), source: $file, name: $amr})", file=file,
-               amr="AMR")
+               amr="Argument structure")
 
     @staticmethod
     def _create_relationship(tx):
@@ -63,7 +64,7 @@ class Neo4J:
                "MERGE (a)-[c:STANCE {name: a.stance}]->(b)")
         tx.run("MATCH (a:argument), (b:amr) "
                "WHERE a.argument_id=b.argument_id AND a.source=b.source AND b.name=$name "
-               "MERGE (a)-[c:AMR]->(b)", name="AMR")
+               "MERGE (a)-[c:ISREALTEDTO]->(b)", name="Argument structure")
 
     @staticmethod
     def _create_amr(tx, root, node):
@@ -80,7 +81,7 @@ class Neo4J:
                "WHERE a.argument_id=b.argument_id=$id AND a.source=b.source=$source AND a.name=$name2 AND "
                "b.name=$name1 AND b.type=$type AND b.identifier=$ident AND b.relationship=$rel "
                f"MERGE (a)-[:{node[2]}]->(b)", id=node[0], source=node[1], type=node[2], name1=node[3],
-               ident=node[4], rel=node[5], name2="AMR")
+               ident=node[4], rel=node[5], name2="Argument structure")
 
 
 def create_some_amr(amr_creation_input, path):
@@ -147,7 +148,7 @@ def create_some_amr(amr_creation_input, path):
                             app.create_amr(temp_array[j], temp_array[i])
                             found_ref = True
                             found_root = True
-                        elif temp_array[ref][4] == temp_array[i][4]:
+                        elif (temp_array[ref][4] == temp_array[i][4]) and (temp_array[ref][3] != "None"):
                             app.create_amr(temp_array[j], temp_array[ref])
                             found_ref = True
                             found_root = True
@@ -169,26 +170,38 @@ def create_basic_database():
     print("Basic database took", time.time() - start_time, "secs to run")
 
 
-def generate_some_amr(model, csv_input, iterations):
+def generate_some_amr(model, csv_input, start, end):
     start_time = time.time()
-    i = 0
-    while i < iterations:
+    i = start
+    while i < end:
         # premise
-        graphs = model.parse_sents([csv_input.premise[i]])  # creates AMR graph
-        print(graphs[0])  # control output
-        amr_creation_input = [graphs[0], i]  # int64 not supported
-        create_some_amr(amr_creation_input, "PREMISE")
+        j = 0
+        while j < len(sent_tokenize((csv_input.premise[i]))):
+            sentence_split = sent_tokenize(csv_input.premise[i])
+            graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
+            print(graphs[0])  # control output
+            amr_creation_input = [graphs[0], i]  # int64 not supported
+            create_some_amr(amr_creation_input, f"PREMISE{j}")
+            j += 1
         # conclusion
-        graphs = model.parse_sents([csv_input.conclusion[i]])  # creates AMR graph
-        print(graphs[0])  # control output
-        amr_creation_input = [graphs[0], i]  # int64 not supported
-        create_some_amr(amr_creation_input, "CONCLUSION")
+        j = 0
+        while j < len(sent_tokenize((csv_input.conclusion[i]))):
+            sentence_split = sent_tokenize(csv_input.conclusion[i])
+            graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
+            print(graphs[0])  # control output
+            amr_creation_input = [graphs[0], i]  # int64 not supported
+            create_some_amr(amr_creation_input, "CONCLUSION")
+            j += 1
         i += 1
     print("AMR took", time.time() - start_time, "secs to run")
 
 
 if __name__ == "__main__":
+    # Better output
     numpy.set_printoptions(linewidth=320)
+
+    # Needed to install nltk
+    # nltk.download()
 
     # Connection information
 
@@ -210,8 +223,8 @@ if __name__ == "__main__":
     csv_data = pd.read_csv(pandas_file)
 
     # for testing
-    generate_some_amr(amr_model, csv_data, 5)
+    generate_some_amr(amr_model, csv_data, 0, 20)
 
     app.close()
 
-    # Multisentence, look at ""
+    # look at ""
