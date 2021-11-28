@@ -113,16 +113,6 @@ def create_some_amr(amr_creation_input, path):
             identifier = "None"
             if line.find("\"") > -1:
                 name = line[line.find("\""):line.rfind("\"") + 1]
-            elif line.find(":quant") > -1:
-                if line.find(")") > -1:
-                    name = line[line.find(":quant") + 7:line.find(")")]
-                else:
-                    name = line[line.find(":quant") + 7:]
-            elif line.find(":polarity") > -1:
-                if line.find(")") > -1:
-                    name = line[line.find(":polarity") + 10:line.find(")")]
-                else:
-                    name = line[line.find(":polarity") + 10:]
             else:
                 if line.find(")") > -1:
                     identifier = raw_line[raw_line.find(" ") + 1:raw_line.find(")")]
@@ -161,6 +151,7 @@ def create_some_amr(amr_creation_input, path):
                 j -= 1
         i += 1
     app.connect_amr(temp_array[0])
+    print(temp_array)
 
 
 def create_basic_database():
@@ -223,7 +214,7 @@ if __name__ == "__main__":
     csv_data = pd.read_csv(pandas_file)
 
     # for testing
-    generate_some_amr(amr_model, csv_data, 0, 20)
+    generate_some_amr(amr_model, csv_data, 0, 10)
 
     app.close()
 
