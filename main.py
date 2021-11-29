@@ -151,7 +151,6 @@ def create_some_amr(amr_creation_input, path):
                 j -= 1
         i += 1
     app.connect_amr(temp_array[0])
-    print(temp_array)
 
 
 def create_basic_database():
@@ -170,7 +169,7 @@ def generate_some_amr(model, csv_input, start, end):
         while j < len(sent_tokenize((csv_input.premise[i]))):
             sentence_split = sent_tokenize(csv_input.premise[i])
             graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
-            print(graphs[0])  # control output
+            # print(graphs[0])  # control output
             amr_creation_input = [graphs[0], i]  # int64 not supported
             create_some_amr(amr_creation_input, f"PREMISE{j}")
             j += 1
@@ -179,9 +178,9 @@ def generate_some_amr(model, csv_input, start, end):
         while j < len(sent_tokenize((csv_input.conclusion[i]))):
             sentence_split = sent_tokenize(csv_input.conclusion[i])
             graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
-            print(graphs[0])  # control output
+            # print(graphs[0])  # control output
             amr_creation_input = [graphs[0], i]  # int64 not supported
-            create_some_amr(amr_creation_input, "CONCLUSION")
+            create_some_amr(amr_creation_input, f"CONCLUSION{j}")
             j += 1
         i += 1
     print("AMR took", time.time() - start_time, "secs to run")
@@ -213,9 +212,7 @@ if __name__ == "__main__":
     # load csv with pandas for amr generation
     csv_data = pd.read_csv(pandas_file)
 
-    # for testing
-    generate_some_amr(amr_model, csv_data, 0, 10)
+    # for testing (model, data, start, end)
+    generate_some_amr(amr_model, csv_data, 0, 20)
 
     app.close()
-
-    # look at ""
