@@ -33,9 +33,9 @@ class Neo4J:
         with self.driver.session() as session:
             session.write_transaction(self._create_amr, root, node)
 
-    def connect_amr(self, node):
+    def connect_amr(self, node, type):
         with self.driver.session() as session:
-            session.write_transaction(self._connect_amr, node)
+            session.write_transaction(self._connect_amr, node, type)
 
     @staticmethod
     def _create_node(tx):
@@ -76,15 +76,15 @@ class Neo4J:
                ident1=root[4], ident2=node[4], rel1=root[5], rel2=node[5])
 
     @staticmethod
-    def _connect_amr(tx, node):
+    def _connect_amr(tx, node, type):
         tx.run("MATCH (a:amr), (b:amr) "
                "WHERE a.argument_id=b.argument_id=$id AND a.source=b.source=$source AND a.name=$name2 AND "
                "b.name=$name1 AND b.type=$type AND b.identifier=$ident AND b.relationship=$rel "
-               f"MERGE (a)-[:{node[2]}]->(b)", id=node[0], source=node[1], type=node[2], name1=node[3],
+               f"MERGE (a)-[:{type}]->(b)", id=node[0], source=node[1], type=node[2], name1=node[3],
                ident=node[4], rel=node[5], name2="Argument structure")
 
 
-def create_some_amr(amr_creation_input, path):
+def create_some_amr(amr_creation_input, path, type):
     # [AMR, id], premise/conclusion
     graph = amr_creation_input[0]
     arg_id = amr_creation_input[1]
@@ -150,7 +150,7 @@ def create_some_amr(amr_creation_input, path):
             else:
                 j -= 1
         i += 1
-    app.connect_amr(temp_array[0])
+    app.connect_amr(temp_array[0], type)
 
 
 def create_basic_database():
@@ -169,18 +169,18 @@ def generate_some_amr(model, csv_input, start, end):
         while j < len(sent_tokenize((csv_input.premise[i]))):
             sentence_split = sent_tokenize(csv_input.premise[i])
             graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
-            # print(graphs[0])  # control output
+            print(graphs[0])  # control output
             amr_creation_input = [graphs[0], i]  # int64 not supported
-            create_some_amr(amr_creation_input, f"PREMISE{j}")
+            create_some_amr(amr_creation_input, f"PREMISE{j}", "PREMISE")
             j += 1
         # conclusion
         j = 0
         while j < len(sent_tokenize((csv_input.conclusion[i]))):
             sentence_split = sent_tokenize(csv_input.conclusion[i])
             graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
-            # print(graphs[0])  # control output
+            print(graphs[0])  # control output
             amr_creation_input = [graphs[0], i]  # int64 not supported
-            create_some_amr(amr_creation_input, f"CONCLUSION{j}")
+            create_some_amr(amr_creation_input, f"CONCLUSION{j}", "CONCLUSION")
             j += 1
         i += 1
     print("AMR took", time.time() - start_time, "secs to run")
@@ -213,6 +213,6 @@ if __name__ == "__main__":
     csv_data = pd.read_csv(pandas_file)
 
     # for testing (model, data, start, end)
-    generate_some_amr(amr_model, csv_data, 0, 20)
+    generate_some_amr(amr_model, csv_data, 0, 5)
 
     app.close()
