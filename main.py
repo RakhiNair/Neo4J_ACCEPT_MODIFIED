@@ -2,12 +2,16 @@ from neo4j import GraphDatabase
 import amrlib
 import pandas as pd
 import time
-import numpy
+import numpy as np
+import traceback
+import logging
+
 from nltk.tokenize import sent_tokenize
 
 # NEO4J Import
 # local file in import folder, otherwise https://neo4j.com/developer/kb/import-csv-locations/
 file = 'file:///Webis-argument-framing.csv'
+# file = "O:/Arbeit/Webis-argument-framing.csv"
 
 # Pandas Import for AMR generation
 pandas_file = "O:/Arbeit/Webis-argument-framing.csv"
@@ -21,9 +25,9 @@ class Neo4J:
     def close(self):
         self.driver.close()
 
-    def create_node(self):
+    def create_node(self, arg_id, f_id, frame, t_id, topic, premise, stance, conclusion, source):
         with self.driver.session() as session:
-            session.write_transaction(self._create_node)
+            session.write_transaction(self._create_node, arg_id, f_id, frame, t_id, topic, premise, stance, conclusion, source)
 
     def create_relationship(self):
         with self.driver.session() as session:
@@ -38,18 +42,15 @@ class Neo4J:
             session.write_transaction(self._connect_amr, node, type)
 
     @staticmethod
-    def _create_node(tx):
-        tx.run("LOAD CSV WITH HEADERS FROM $file AS row "
-               "WITH row WHERE row.argument_id IS NOT NULL "
-               "MERGE (:argument {argument_id: toInteger(row.argument_id), frame_id: toInteger(row.frame_id), "
-               "frame: row.frame, topic_id: toInteger(row.topic_id), topic: row.topic, premise: row.premise, "
-               "stance: row.stance, "
-               "conclusion: row.conclusion, source: $file}) "
-               "MERGE (:frame {frame_id: toInteger(row.frame_id), name: row.frame}) "
-               "MERGE (:topic {topic_id: toInteger(row.topic_id), name: row.topic}) "
-               "MERGE (:stance {stance: row.stance}) "
-               "MERGE (:amr {argument_id: toInteger(row.argument_id), source: $file, name: $amr})", file=file,
-               amr="Argument structure")
+    def _create_node(tx, arg_id, f_id, frame, t_id, topic, premise, stance, conclusion, source):
+        tx.run("MERGE (:argument {argument_id: $arg_id, frame_id: $f_id, frame: $frame, topic_id: $t_id, "
+               "topic: $topic, premise: $premise, stance: $stance, conclusion: $conclusion, source: $source}) "
+               "MERGE (:frame {frame_id: $f_id, name: $frame}) "
+               "MERGE (:topic {topic_id: $t_id, name: $topic}) "
+               "MERGE (:stance {stance: $stance}) "
+               "MERGE (:amr {argument_id: $arg_id, source: $source, name: $amr})",
+               arg_id=arg_id, f_id=f_id, frame=frame, t_id=t_id, topic=topic, premise=premise, stance=stance,
+               conclusion=conclusion, source=source, amr="Argument structure")
 
     @staticmethod
     def _create_relationship(tx):
@@ -89,7 +90,7 @@ def create_some_amr(amr_creation_input, path, type):
     graph = amr_creation_input[0]
     arg_id = amr_creation_input[1]
     # [id, source, type, name, identifier, relationship, relationship label, inserts)
-    temp_array = numpy.empty(shape=(len(graph.splitlines()) - 1, 8), dtype=object)
+    temp_array = np.empty(shape=(len(graph.splitlines()) - 1, 8), dtype=object)
     # i = 0 is the raw sentence
     i = 1
     while i < len(graph.splitlines()):
@@ -153,9 +154,21 @@ def create_some_amr(amr_creation_input, path, type):
     app.connect_amr(temp_array[0], type)
 
 
-def create_basic_database():
+def create_basic_database(csv_input):
     start_time = time.time()
-    app.create_node()
+    i = 0
+    while i < len(csv_input):
+        arg_id = int(csv_input.argument_id[i])
+        f_id = int(csv_input.frame_id[i])
+        frame = csv_input.frame[i]
+        t_id = int(csv_input.topic_id[i])
+        topic = csv_input.topic[i]
+        premise = csv_input.premise[i]
+        stance = csv_input.stance[i]
+        conclusion = csv_input.conclusion[i]
+        source = file
+        app.create_node(arg_id, f_id, frame, t_id, topic, premise, stance, conclusion, source)
+        i += 1
     app.create_relationship()
     print("Basic database took", time.time() - start_time, "secs to run")
 
@@ -163,56 +176,67 @@ def create_basic_database():
 def generate_some_amr(model, csv_input, start, end):
     start_time = time.time()
     i = start
-    while i < end:
-        # premise
-        j = 0
-        while j < len(sent_tokenize((csv_input.premise[i]))):
-            sentence_split = sent_tokenize(csv_input.premise[i])
-            graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
-            print(graphs[0])  # control output
-            amr_creation_input = [graphs[0], i]  # int64 not supported
-            create_some_amr(amr_creation_input, f"PREMISE{j}", "PREMISE")
-            j += 1
-        # conclusion
-        j = 0
-        while j < len(sent_tokenize((csv_input.conclusion[i]))):
-            sentence_split = sent_tokenize(csv_input.conclusion[i])
-            graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
-            print(graphs[0])  # control output
-            amr_creation_input = [graphs[0], i]  # int64 not supported
-            create_some_amr(amr_creation_input, f"CONCLUSION{j}", "CONCLUSION")
-            j += 1
-        i += 1
+    try:
+        while i < end:
+            # premise
+            j = 0
+            while j < len(sent_tokenize((csv_input.premise[i]))):
+                sentence_split = sent_tokenize(csv_input.premise[i])
+                graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
+                print(graphs[0])  # control output
+                amr_creation_input = [graphs[0], i]  # int64 not supported
+                create_some_amr(amr_creation_input, f"PREMISE{j}", "PREMISE")
+                j += 1
+            # conclusion
+            j = 0
+            while j < len(sent_tokenize((csv_input.conclusion[i]))):
+                sentence_split = sent_tokenize(csv_input.conclusion[i])
+                graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
+                print(graphs[0])  # control output
+                amr_creation_input = [graphs[0], i]  # int64 not supported
+                create_some_amr(amr_creation_input, f"CONCLUSION{j}", "CONCLUSION")
+                j += 1
+            i += 1
+    except Exception as e:
+        logging.error(traceback.format_exc())
     print("AMR took", time.time() - start_time, "secs to run")
 
 
 if __name__ == "__main__":
     # Better output
-    numpy.set_printoptions(linewidth=320)
+    np.set_printoptions(linewidth=320)
 
     # Needed to install nltk
     # nltk.download()
 
     # Connection information
 
+    # scheme: "neo4j+ssc" for Heidelberg, "bolt" for local
     scheme = "bolt"
-    # localhost for local host
+    # server address: "v17.cl.uni-heidelberg.de" for Heidelberg, "localhost" for local
     host_name = "localhost"
-    # 7687 for local host
+    # port: "7687" for both
     port = "7687"
-    url = "{scheme}://{host_name}:{port}".format(scheme=scheme, host_name=host_name, port=port)
-    user = "admin"
-    password = "admin"
+    # url = "{scheme}://{host_name}:{port}".format(scheme=scheme, host_name=host_name, port=port)
 
+    # use this for now
+    url = "neo4j+ssc://v17.cl.uni-heidelberg.de:7687"
+    # url = "bolt://localhost:7687"
+
+    user = input("Username: ")
+    password = input("Password: ")
+
+    # Connecting
     app = Neo4J(url, user, password)
-    create_basic_database()
 
+    # Load csv with pandas
+    csv_data = pd.read_csv(pandas_file)
+    create_basic_database(csv_data)
+    # print(csv_data.shape)
     # AMR models: https://amrlib.readthedocs.io/en/latest/install/
     amr_model = amrlib.load_stog_model()
-    # load csv with pandas for amr generation
-    csv_data = pd.read_csv(pandas_file)
 
-    # for testing (model, data, start, end)
-    generate_some_amr(amr_model, csv_data, 0, 5)
+    # for testing (model, data, start, end), 12326 lines
+    generate_some_amr(amr_model, csv_data, 0, 12326)
 
     app.close()
