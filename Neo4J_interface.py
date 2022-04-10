@@ -57,16 +57,16 @@ class Neo4J:
     @staticmethod
     def _connect_amr(tx, node, type, node_id):
         tx.run(f"MATCH (a:argument_unit), (b:amr) "
-               "WHERE a.type=$type1 AND a.id=b.id=$id AND b.relationship=$rel AND b.type=$path "
+               "WHERE a.type=$type1 AND a.sub_id=b.sub_id=$id AND b.relationship=$rel AND b.type=$path "
                f"MERGE (a)-[:{type}]->(b)", id=node_id, source=node[1], type1=type, name1=node[3],
                ident=node[4], rel=node[5], name2="Argument structure", type2=node[2], type=type, path=node[2])
 
     @staticmethod
     def _create_amr(tx, root, node, node_id):
-        tx.run("MERGE (a:amr {amr_id: $amr_id1, id: $node_id, argument_id: $id, source: $source, type: $type, "
+        tx.run("MERGE (a:amr {id: $amr_id1, sub_id: $node_id, source: $source, type: $type, "
                "name: $name1, "
                "identifier: $ident1, relationship: $rel1}) "
-               "MERGE (b:amr {amr_id: $amr_id2, id: $node_id, argument_id: $id, source: $source, type: $type, "
+               "MERGE (b:amr {id: $amr_id2, sub_id: $node_id, source: $source, type: $type, "
                "name: $name2, "
                "identifier: $ident2, relationship: $rel2}) "
                f"MERGE (a)-[:{node[6]}]->(b)", id=root[0], source=root[1], type=root[2], name1=root[3], name2=node[3],
@@ -79,21 +79,25 @@ class Neo4J:
                "WHERE a.topic = b.name "
                "MERGE (b)-[:` `]->(a)")
         tx.run("MATCH (a:argument), (b:argument_structure) "
-               "WHERE a.id = b.id "
+               "WHERE a.sub_id = b.sub_id "
                "MERGE (a)-[:` `]->(b)")
         tx.run("MATCH (a:argument_structure), (b:argument_unit) "
-               "WHERE a.id = b.id "
+               "WHERE a.sub_id = b.sub_id "
                "MERGE (a)-[:` `]->(b)")
 
     @staticmethod
     def _init_nodes(tx, node_id, node_data):
-        tx.run("MERGE (:argument {id: $node_id, argument_id: $arg_id, frame: $frame, "
+        tx.run("MERGE (:argument {id: $node_id1, sub_id: $sub_id, frame: $frame, "
                "topic: $topic, stance: $stance, source: $source}) "
                "MERGE (:topic {name: $topic}) "
-               "MERGE (:argument_structure {id: $node_id, argument_id: $arg_id}) "
-               "MERGE (:argument_unit {id: $node_id, argument_id: $arg_id, type: $type1, rawText: $premise}) "
-               "MERGE (:argument_unit {id: $node_id, argument_id: $arg_id, type: $type2, rawText: $conclusion})",
-               node_id=node_id, arg_id=node_data["arg_id"], frame=node_data["frame"],
+               "MERGE (:argument_structure {id: $node_id2, sub_id: $sub_id}) "
+               "MERGE (:argument_unit {id: $node_id3, sub_id: $sub_id, type: $type1, "
+               "rawText: $premise}) "
+               "MERGE (:argument_unit {id: $node_id4, sub_id: $sub_id, type: $type2, "
+               "rawText: $conclusion})",
+               node_id1=node_id + "_argument", node_id2=node_id + "_argument_structure",
+               node_id3=node_id + "_premise", node_id4=node_id + "_original_conclusion",
+               sub_id=node_id, arg_id=node_data["arg_id"], frame=node_data["frame"],
                topic=node_data["topic"], premise=node_data["premise"], type1="premise", type2="original_conclusion",
                stance=node_data["stance"], conclusion=node_data["conclusion"], source=node_data["source"])
 

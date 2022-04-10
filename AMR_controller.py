@@ -8,6 +8,14 @@ from CSVInput import pandas_file
 
 
 def add_to_graph(app, amr_creation_input, path, type):
+    '''
+
+    :param app:
+    :param amr_creation_input: [graph, argument_id, node_id]
+    :param path: type+number of sentence
+    :param type: type
+    :return:
+    '''
     # [AMR, id, node_id], premise/conclusion
     graph = amr_creation_input[0]
     arg_id = amr_creation_input[1]
