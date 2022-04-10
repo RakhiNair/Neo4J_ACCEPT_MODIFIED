@@ -77,13 +77,13 @@ class Neo4J:
     def _init_edges(tx):
         tx.run("MATCH (a:argument), (b:topic) "
                "WHERE a.topic = b.name "
-               "MERGE (b)-[:CONTAINS]->(a)")
+               "MERGE (b)-[:` `]->(a)")
         tx.run("MATCH (a:argument), (b:argument_structure) "
                "WHERE a.id = b.id "
-               "MERGE (a)-[:ISRELATEDTO]->(b)")
+               "MERGE (a)-[:` `]->(b)")
         tx.run("MATCH (a:argument_structure), (b:argument_unit) "
                "WHERE a.id = b.id "
-               "MERGE (a)-[:CONSISTS]->(b)")
+               "MERGE (a)-[:` `]->(b)")
 
     @staticmethod
     def _init_nodes(tx, node_id, node_data):
@@ -99,9 +99,9 @@ class Neo4J:
 
     @staticmethod
     def _search_keyword(tx, keyword):
-        result = tx.run("MATCH (a:argument) "
-                        "WHERE toLower(a.conclusion) CONTAINS toLower($keyword) "
-                        f"RETURN a.argument_id, a.conclusion ", keyword=keyword)
+        result = tx.run("MATCH (a:argument_unit) "
+                        "WHERE toLower(a.rawText) CONTAINS toLower($keyword) AND a.type=$type "
+                        f"RETURN a.argument_id, a.rawText ", keyword=keyword, type="original_conclusion")
         f = open("search_result.txt", "w")
         f.write("Search result for " + keyword + "\n")
         for line in result:

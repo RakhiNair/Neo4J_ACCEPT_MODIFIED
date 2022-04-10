@@ -4,10 +4,10 @@ import logging
 import numpy as np
 import traceback
 from nltk.tokenize import sent_tokenize
-from main import pandas_file
+from CSVInput import pandas_file
 
 
-def create_some_amr(app, amr_creation_input, path, type):
+def add_to_graph(app, amr_creation_input, path, type):
     # [AMR, id, node_id], premise/conclusion
     graph = amr_creation_input[0]
     arg_id = amr_creation_input[1]
@@ -77,7 +77,7 @@ def create_some_amr(app, amr_creation_input, path, type):
     app.connect_amr(temp_array[0], type, node_id)
 
 
-def generate_some_amr(app, model, csv_input, start, end):
+def generate(app, model, csv_input, start, end):
     start_time = time.time()
     i = start
     try:
@@ -90,7 +90,7 @@ def generate_some_amr(app, model, csv_input, start, end):
                 graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
                 print(graphs[0])  # control output
                 amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), node_id]  # int64 not supported
-                create_some_amr(app, amr_creation_input, f"premise_{j}", "premise")
+                add_to_graph(app, amr_creation_input, f"premise_{j}", "premise")
                 j += 1
             # conclusion
             j = 0
@@ -99,7 +99,7 @@ def generate_some_amr(app, model, csv_input, start, end):
                 graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
                 print(graphs[0])  # control output
                 amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), node_id]  # int64 not supported
-                create_some_amr(app, amr_creation_input, f"conclusion_{j}", "original_conclusion")
+                add_to_graph(app, amr_creation_input, f"conclusion_{j}", "original_conclusion")
                 j += 1
             i += 1
     except Exception as e:
