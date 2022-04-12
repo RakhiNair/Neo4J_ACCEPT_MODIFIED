@@ -11,26 +11,31 @@ pandas_file = "O:/Arbeit/Webis-argument-framing.csv"
 
 
 def create_basic_database(csv_input):
+    """
+    Extract data from csv, save them in a dictionary and create nodes+edges in Neo4J.
+    :param csv_input: csv read from pandas
+    :return:
+    """
     start_time = time.time()
     i = 0
     while i < len(csv_input):
-        node_id = pandas_file[pandas_file.rfind("/")+1:pandas_file.rfind(".")] + "_" + str(csv_input.argument_id[i])
-        node_dict = {"arg_id": int(csv_input.argument_id[i]),
-                     "frame": csv_input.frame[i],
+        sup_id = pandas_file[pandas_file.rfind("/")+1:pandas_file.rfind(".")] + "_" + str(csv_input.argument_id[i])
+        node_dict = {"frame": csv_input.frame[i],
                      "topic": csv_input.topic[i],
                      "premise": csv_input.premise[i],
                      "stance": csv_input.stance[i],
                      "conclusion": csv_input.conclusion[i],
                      "source": pandas_file[pandas_file.rfind("/")+1:]}
-        app.init_nodes(node_id, node_dict)
-        # app.write_amr_start(node_id, node_dict)
+        # create nodes
+        app.init_nodes(sup_id, node_dict)
         i += 1
+    # connect nodes
     app.init_edges()
     print("Basic database took", time.time() - start_time, "secs to run")
 
 
 if __name__ == "__main__":
-    # Better output
+    # Better output in console
     np.set_printoptions(linewidth=320)
 
     # Needed to install nltk
