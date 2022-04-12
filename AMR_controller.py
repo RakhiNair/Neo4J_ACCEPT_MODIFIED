@@ -1,4 +1,3 @@
-import amrlib
 import time
 import logging
 import numpy as np
@@ -86,27 +85,37 @@ def add_to_graph(app, amr_creation_input, path, type):
 
 
 def generate(app, model, csv_input, start, end):
+    """
+    Split up the sentences with nltk and generate the AMR.
+    Add them to the graph
+    :param app:
+    :param model: model used for AMR
+    :param csv_input: raw csv data
+    :param start: starting line in csv
+    :param end: ending line in csv
+    :return:
+    """
     start_time = time.time()
     i = start
     try:
         while i < end:
-            node_id = pandas_file[pandas_file.rfind("/") + 1:] + "_" + str(csv_input.argument_id[i])
+            sup_id = pandas_file[pandas_file.rfind("/")+1:pandas_file.rfind(".")] + "_" + str(csv_input.argument_id[i])
             # premise
             j = 0
-            while j < len(sent_tokenize((csv_input.premise[i]))):
-                sentence_split = sent_tokenize(csv_input.premise[i])
+            sentence_split = sent_tokenize(csv_input.premise[i])
+            while j < len(sentence_split):
                 graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
                 print(graphs[0])  # control output
-                amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), node_id]  # int64 not supported
+                amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), sup_id]  # int64 not supported
                 add_to_graph(app, amr_creation_input, f"premise_{j}", "premise")
                 j += 1
             # conclusion
             j = 0
-            while j < len(sent_tokenize((csv_input.conclusion[i]))):
-                sentence_split = sent_tokenize(csv_input.conclusion[i])
+            sentence_split = sent_tokenize(csv_input.conclusion[i])
+            while j < len(sentence_split):
                 graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
                 print(graphs[0])  # control output
-                amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), node_id]  # int64 not supported
+                amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), sup_id]  # int64 not supported
                 add_to_graph(app, amr_creation_input, f"conclusion_{j}", "original_conclusion")
                 j += 1
             i += 1

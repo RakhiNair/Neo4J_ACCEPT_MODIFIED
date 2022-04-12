@@ -25,7 +25,7 @@ def create_basic_database(csv_input):
                      "premise": csv_input.premise[i],
                      "stance": csv_input.stance[i],
                      "conclusion": csv_input.conclusion[i],
-                     "source": pandas_file[pandas_file.rfind("/")+1:]}
+                     "source": pandas_file[pandas_file.rfind("/")+1:pandas_file.rfind(".")]}
         # create nodes
         app.init_nodes(sup_id, node_dict)
         i += 1
