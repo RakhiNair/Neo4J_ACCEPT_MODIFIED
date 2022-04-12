@@ -77,29 +77,29 @@ class Neo4J:
     def _init_edges(tx):
         tx.run("MATCH (a:argument), (b:topic) "
                "WHERE a.topic = b.name "
-               "MERGE (b)-[:` `]->(a)")
+               "MERGE (b)-[:SUBSTRUCTURE]->(a)")
         tx.run("MATCH (a:argument), (b:argument_structure) "
-               "WHERE a.sub_id = b.sub_id "
-               "MERGE (a)-[:` `]->(b)")
+               "WHERE a.sup_id = b.sup_id "
+               "MERGE (a)-[:SUBSTRUCTURE]->(b)")
         tx.run("MATCH (a:argument_structure), (b:argument_unit) "
-               "WHERE a.sub_id = b.sub_id "
-               "MERGE (a)-[:` `]->(b)")
+               "WHERE a.sup_id = b.sup_id "
+               "MERGE (a)-[:SUBSTRUCTURE]->(b)")
 
     @staticmethod
     def _init_nodes(tx, node_id, node_data):
-        tx.run("MERGE (:argument {id: $node_id1, sub_id: $sub_id, frame: $frame, "
+        tx.run("MERGE (:argument {id: $node_id_argument, sup_id: $sup_id, frame: $frame, "
                "topic: $topic, stance: $stance, source: $source}) "
                "MERGE (:topic {name: $topic}) "
-               "MERGE (:argument_structure {id: $node_id2, sub_id: $sub_id}) "
-               "MERGE (:argument_unit {id: $node_id3, sub_id: $sub_id, type: $type1, "
-               "rawText: $premise}) "
-               "MERGE (:argument_unit {id: $node_id4, sub_id: $sub_id, type: $type2, "
+               "MERGE (:argument_structure {id: $node_id_argument_structure, sup_id: $sup_id}) "
+               "MERGE (:argument_unit {id: $node_id_premise, sup_id: $sup_id, type: $type_premise, rawText: $premise}) "
+               "MERGE (:argument_unit {id: $node_id_original_conclusion, sup_id: $sup_id, type: $type_conclusion, "
                "rawText: $conclusion})",
-               node_id1=node_id + "_argument", node_id2=node_id + "_argument_structure",
-               node_id3=node_id + "_premise", node_id4=node_id + "_original_conclusion",
-               sub_id=node_id, arg_id=node_data["arg_id"], frame=node_data["frame"],
-               topic=node_data["topic"], premise=node_data["premise"], type1="premise", type2="original_conclusion",
-               stance=node_data["stance"], conclusion=node_data["conclusion"], source=node_data["source"])
+               node_id_argument=node_id + "_argument", node_id_argument_structure=node_id + "_argument_structure",
+               node_id_premise=node_id + "_premise", node_id_original_conclusion=node_id + "_original_conclusion",
+               sup_id=node_id, frame=node_data["frame"], topic=node_data["topic"],
+               stance=node_data["stance"], source=node_data["source"],
+               premise=node_data["premise"], conclusion=node_data["conclusion"],
+               type_premise="premise", type_conclusion="original_conclusion")
 
     @staticmethod
     def _search_keyword(tx, keyword):
