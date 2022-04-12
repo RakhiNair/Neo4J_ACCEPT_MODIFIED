@@ -10,7 +10,7 @@ def add_to_graph(app, amr_creation_input, path, type):
     """
 
     :param app:
-    :param amr_creation_input: [graph, argument_id, node_id]
+    :param amr_creation_input: [graph, argument_id, sup_id]
     :param path: type+number of sentence
     :param type: type
     :return:
@@ -18,7 +18,7 @@ def add_to_graph(app, amr_creation_input, path, type):
     # [AMR, id, node_id], premise/conclusion
     graph = amr_creation_input[0]
     arg_id = amr_creation_input[1]
-    node_id = amr_creation_input[2]
+    sup_id = amr_creation_input[2]
     # [id, source, type, name, identifier, relationship, relationship label, inserts)
     temp_array = np.empty(shape=(len(graph.splitlines()) - 1, 8), dtype=object)
     # i = 0 is the raw sentence
@@ -66,22 +66,22 @@ def add_to_graph(app, amr_creation_input, path, type):
                         if ref == 0:
                             temp_array[i][3] = temp_array[i][4]
                             temp_array[i][4] = "None"
-                            app.create_amr(temp_array[j], temp_array[i], node_id)
+                            app.create_amr(temp_array[j], temp_array[i], sup_id)
                             found_ref = True
                             found_root = True
                         elif (temp_array[ref][4] == temp_array[i][4]) and (temp_array[ref][3] != "None"):
-                            app.create_amr(temp_array[j], temp_array[ref], node_id)
+                            app.create_amr(temp_array[j], temp_array[ref], sup_id)
                             found_ref = True
                             found_root = True
                         else:
                             ref -= 1
                 else:
-                    app.create_amr(temp_array[j], temp_array[i], node_id)
+                    app.create_amr(temp_array[j], temp_array[i], sup_id)
                     found_root = True
             else:
                 j -= 1
         i += 1
-    app.connect_amr(temp_array[0], type, node_id)
+    app.connect_amr(temp_array[0], type, sup_id)
 
 
 def generate(app, model, csv_input, start, end):
@@ -116,7 +116,7 @@ def generate(app, model, csv_input, start, end):
                 graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
                 print(graphs[0])  # control output
                 amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), sup_id]  # int64 not supported
-                add_to_graph(app, amr_creation_input, f"conclusion_{j}", "original_conclusion")
+                add_to_graph(app, amr_creation_input, f"original_conclusion_{j}", "original_conclusion")
                 j += 1
             i += 1
     except Exception as e:

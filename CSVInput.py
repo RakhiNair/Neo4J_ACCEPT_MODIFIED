@@ -69,7 +69,7 @@ if __name__ == "__main__":
         print("Loading model...")
         amr_model = amrlib.load_stog_model()
         # for testing (app, model, data, start, end), 12326 lines
-        AMR_controller.generate(app, amr_model, csv_data, 0, 1)
+        AMR_controller.generate(app, amr_model, csv_data, 12000, 12005)
     elif task_input == "s":
         search_input = input("\nWhat do you want to search for?\n")
         app.search_keyword(search_input)

@@ -55,23 +55,30 @@ class Neo4J:
         return result.data()
 
     @staticmethod
-    def _connect_amr(tx, node, type, node_id):
+    def _connect_amr(tx, node, type, sup_id):
         tx.run(f"MATCH (a:argument_unit), (b:amr) "
-               "WHERE a.type=$type1 AND a.sub_id=b.sub_id=$id AND b.relationship=$rel AND b.type=$path "
-               f"MERGE (a)-[:{type}]->(b)", id=node_id, source=node[1], type1=type, name1=node[3],
+               "WHERE a.type=$type1 AND a.sup_id=b.sup_id=$id AND b.relationship=$rel AND b.type=$path "
+               f"MERGE (a)-[:{type}]->(b)", id=sup_id, source=node[1], type1=type, name1=node[3],
                ident=node[4], rel=node[5], name2="Argument structure", type2=node[2], type=type, path=node[2])
 
     @staticmethod
-    def _create_amr(tx, root, node, node_id):
-        tx.run("MERGE (a:amr {id: $amr_id1, sub_id: $node_id, source: $source, type: $type, "
-               "name: $name1, "
-               "identifier: $ident1, relationship: $rel1}) "
-               "MERGE (b:amr {id: $amr_id2, sub_id: $node_id, source: $source, type: $type, "
-               "name: $name2, "
-               "identifier: $ident2, relationship: $rel2}) "
-               f"MERGE (a)-[:{node[6]}]->(b)", id=root[0], source=root[1], type=root[2], name1=root[3], name2=node[3],
-               ident1=root[4], ident2=node[4], rel1=root[5], rel2=node[5], node_id=node_id,
-               amr_id1=node_id + "_" + root[2] + "_" + root[4], amr_id2=node_id + "_" + root[2] + "_" + node[4])
+    def _create_amr(tx, root, leaf, sup_id):
+        """
+        :param tx:
+        :param root: [id, source, type, name, identifier, relationship, relationship label, inserts]
+        :param leaf: [id, source, type, name, identifier, relationship, relationship label, inserts]
+        :param sup_id:
+        :return:
+        """
+        tx.run("MERGE (a:amr {id: $amr_id1, sup_id: $sup_id, type: $type, "
+               "name: $name1, identifier: $ident1, relationship: $rel1}) "
+               "MERGE (b:amr {id: $amr_id2, sup_id: $sup_id, type: $type, "
+               "name: $name2, identifier: $ident2, relationship: $rel2}) "
+               f"MERGE (a)-[:{leaf[6]}]->(b)",
+               amr_id1=sup_id + "_" + root[2] + "_" + root[4], amr_id2=sup_id + "_" + leaf[2] + "_" + leaf[4],
+               sup_id=sup_id,
+               id=root[0], source=root[1], type=root[2], name1=root[3], name2=leaf[3],
+               ident1=root[4], ident2=leaf[4], rel1=root[5], rel2=leaf[5])
 
     @staticmethod
     def _init_edges(tx):
