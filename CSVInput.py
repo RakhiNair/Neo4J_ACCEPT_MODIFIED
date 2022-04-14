@@ -2,6 +2,7 @@ import amrlib
 import pandas as pd
 import time
 import numpy as np
+import argparse
 
 import AMR_controller
 import Neo4J_interface
@@ -19,13 +20,13 @@ def create_basic_database(csv_input):
     start_time = time.time()
     i = 0
     while i < len(csv_input):
-        sup_id = pandas_file[pandas_file.rfind("/")+1:pandas_file.rfind(".")] + "_" + str(csv_input.argument_id[i])
+        sup_id = pandas_file[pandas_file.rfind("/") + 1:pandas_file.rfind(".")] + "_" + str(csv_input.argument_id[i])
         node_dict = {"frame": csv_input.frame[i],
                      "topic": csv_input.topic[i],
                      "premise": csv_input.premise[i],
                      "stance": csv_input.stance[i],
                      "conclusion": csv_input.conclusion[i],
-                     "source": pandas_file[pandas_file.rfind("/")+1:pandas_file.rfind(".")]}
+                     "source": pandas_file[pandas_file.rfind("/") + 1:pandas_file.rfind(".")]}
         # create nodes
         app.init_nodes(sup_id, node_dict)
         i += 1
@@ -43,6 +44,26 @@ if __name__ == "__main__":
 
     # Connection information
 
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("server", help="connect to specific server")
+    parser.add_argument("username", help="username")
+    parser.add_argument("password", help="password")
+    args = parser.parse_args()
+    csv_data = pd.read_csv(pandas_file)
+
+    if args.server == "heidelberg":
+        url = "neo4j+ssc://v17.cl.uni-heidelberg.de:7687"
+        app = Neo4J_interface.Neo4J(url, args.username, args.password)
+        print("Loading model...")
+        amr_model = amrlib.load_stog_model()
+        # for testing (app, model, data, start, end), 12326 lines
+        AMR_controller.generate(app, amr_model, csv_data, 0, 12326)
+        app.close()
+    else:
+        print("Some Error")
+
+    """
     print("\nWhere do you want to connect?\nh (Heidelberg)\nl (local)")
     url_input = input()
     if url_input == "h":
@@ -69,7 +90,7 @@ if __name__ == "__main__":
         print("Loading model...")
         amr_model = amrlib.load_stog_model()
         # for testing (app, model, data, start, end), 12326 lines
-        AMR_controller.generate(app, amr_model, csv_data, 12000, 12005)
+        AMR_controller.generate(app, amr_model, csv_data, 0, 10)
     elif task_input == "s":
         search_input = input("\nWhat do you want to search for?\n")
         app.search_keyword(search_input)
@@ -80,5 +101,4 @@ if __name__ == "__main__":
         print(app.amr_exists(5))
     else:
         print("Unknown task")
-
-    app.close()
+    """
