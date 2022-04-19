@@ -3,12 +3,12 @@ import logging
 import numpy as np
 import traceback
 from nltk.tokenize import sent_tokenize
-from CSVInput import pandas_file
 
 
-def add_to_graph(app, amr_creation_input, path, type):
+def add_to_graph(app, amr_creation_input, path, type, pandas_file):
     """
 
+    :param pandas_file: needed for id
     :param app:
     :param amr_creation_input: [graph, argument_id, sup_id]
     :param path: type+number of sentence
@@ -84,10 +84,11 @@ def add_to_graph(app, amr_creation_input, path, type):
     app.connect_amr(temp_array[0], type, sup_id)
 
 
-def generate(app, model, csv_input, start, end):
+def generate(app, model, csv_input, start, end, pandas_file):
     """
     Split up the sentences with nltk and generate the AMR.
     Add them to the graph
+    :param pandas_file: file name needed for id
     :param app:
     :param model: model used for AMR
     :param csv_input: raw csv data
@@ -107,7 +108,7 @@ def generate(app, model, csv_input, start, end):
                 graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
                 print(graphs[0])  # control output
                 amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), sup_id]  # int64 not supported
-                add_to_graph(app, amr_creation_input, f"premise_{j}", "premise")
+                add_to_graph(app, amr_creation_input, f"premise_{j}", "premise", pandas_file)
                 j += 1
             # conclusion
             j = 0
@@ -116,7 +117,7 @@ def generate(app, model, csv_input, start, end):
                 graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
                 print(graphs[0])  # control output
                 amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), sup_id]  # int64 not supported
-                add_to_graph(app, amr_creation_input, f"original_conclusion_{j}", "original_conclusion")
+                add_to_graph(app, amr_creation_input, f"original_conclusion_{j}", "original_conclusion", pandas_file)
                 j += 1
             i += 1
     except Exception as e:

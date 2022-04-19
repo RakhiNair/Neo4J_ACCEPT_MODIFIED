@@ -7,9 +7,6 @@ import argparse
 import AMR_controller
 import Neo4J_interface
 
-# path to csv
-pandas_file = "O:/Arbeit/Webis-argument-framing.csv"
-
 
 def create_basic_database(csv_input):
     """
@@ -49,7 +46,9 @@ if __name__ == "__main__":
     parser.add_argument("server", help="connect to specific server")
     parser.add_argument("username", help="username")
     parser.add_argument("password", help="password")
+    parser.add_argument("path_to_csv", help="path to csv")
     args = parser.parse_args()
+    pandas_file = args.path_to_csv
     csv_data = pd.read_csv(pandas_file)
 
     if args.server == "heidelberg":
@@ -58,7 +57,16 @@ if __name__ == "__main__":
         print("Loading model...")
         amr_model = amrlib.load_stog_model()
         # for testing (app, model, data, start, end), 12326 lines
-        AMR_controller.generate(app, amr_model, csv_data, 0, 12326)
+        AMR_controller.generate(app, amr_model, csv_data, 0, 12326, pandas_file)
+        app.close()
+    elif args.server == "local":
+        print("Test stuff:")
+        url = "bolt://localhost:7687"
+        app = Neo4J_interface.Neo4J(url, args.username, args.password)
+        print("Loading model...")
+        amr_model = amrlib.load_stog_model()
+        # for testing (app, model, data, start, end), 12326 lines
+        AMR_controller.generate(app, amr_model, csv_data, 0, 1, pandas_file)
         app.close()
     else:
         print("Some Error")
