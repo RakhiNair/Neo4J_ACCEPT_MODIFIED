@@ -49,9 +49,9 @@ class Neo4J:
     # WIP
     @staticmethod
     def _amr_exists(tx, node_id):
-        result = tx.run("OPTIONAL MATCH (a:amr)"
-                        "WHERE a.argument_id = $node_id AND a.name = $name "
-                        f"RETURN a IS NOT NULL AS Exists", node_id=node_id, name="Argument structure")
+        result = tx.run("OPTIONAL MATCH (a:amr) "
+                        "WHERE a.sup_id = $node_id "
+                        f"RETURN a IS NOT NULL AS Exists", node_id=node_id)
         return result.data()
 
     @staticmethod
