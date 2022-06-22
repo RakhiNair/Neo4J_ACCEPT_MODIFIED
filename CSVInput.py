@@ -4,6 +4,8 @@ import time
 import numpy as np
 import argparse
 
+from nltk import sent_tokenize
+
 import AMR_controller
 import Neo4J_interface
 
@@ -17,13 +19,13 @@ def create_basic_database(csv_input):
     start_time = time.time()
     i = 0
     while i < len(csv_input):
-        sup_id = pandas_file[pandas_file.rfind("/") + 1:pandas_file.rfind(".")] + "_" + str(csv_input.argument_id[i])
+        sup_id = pandas_file[pandas_file.rfind("\\") + 1:pandas_file.rfind(".")] + "_" + str(csv_input.argument_id[i])
         node_dict = {"frame": csv_input.frame[i],
                      "topic": csv_input.topic[i],
                      "premise": csv_input.premise[i],
                      "stance": csv_input.stance[i],
                      "conclusion": csv_input.conclusion[i],
-                     "source": pandas_file[pandas_file.rfind("/") + 1:pandas_file.rfind(".")]}
+                     "source": pandas_file[pandas_file.rfind("\\") + 1:pandas_file.rfind(".")]}
         # create nodes
         app.init_nodes(sup_id, node_dict)
         i += 1
@@ -46,30 +48,41 @@ if __name__ == "__main__":
     parser.add_argument("server", help="connect to specific server")
     parser.add_argument("username", help="username")
     parser.add_argument("password", help="password")
-    parser.add_argument("path_to_csv", help="path to csv")
+    parser.add_argument("command", choices=["base", "amr", "test"])
+    parser.add_argument("arguments", nargs='+', help="path to csv first")
     args = parser.parse_args()
-    pandas_file = args.path_to_csv
+    pandas_file = args.arguments[0]
     csv_data = pd.read_csv(pandas_file)
 
     if args.server == "heidelberg":
         url = "neo4j+ssc://v17.cl.uni-heidelberg.de:7687"
-        app = Neo4J_interface.Neo4J(url, args.username, args.password)
+    else:
+        url = "bolt://localhost:7687"
+    app = Neo4J_interface.Neo4J(url, args.username, args.password)
+    if args.command == "base":
+        print("Creating...")
+        create_basic_database(csv_data)
+    elif args.command == "amr":
         print("Loading model...")
         amr_model = amrlib.load_stog_model()
         # for testing (app, model, data, start, end), 12326 lines
         AMR_controller.generate(app, amr_model, csv_data, 0, 12326, pandas_file)
-        app.close()
-    elif args.server == "local":
-        print("Test stuff:")
-        url = "bolt://localhost:7687"
-        app = Neo4J_interface.Neo4J(url, args.username, args.password)
+    elif args.command == "test":
         print("Loading model...")
         amr_model = amrlib.load_stog_model()
-        # for testing (app, model, data, start, end), 12326 lines
-        AMR_controller.generate(app, amr_model, csv_data, 0, 20, pandas_file)
-        app.close()
+        sentence_split = sent_tokenize(csv_data.premise[0])
+        j = 0
+        while j < len(sentence_split):
+            graphs = amr_model.parse_sents([sentence_split[j]])  # creates AMR graph
+            print(graphs[0])  # control output
+            j += 1
+        f = open("amrtest.txt", "w")
+        f.write(graphs[0])
+        f.close()
+        app.add_property("testid", "argument", "testproperty", graphs[0])
     else:
         print("Some Error")
+    app.close()
 
     """
     print("\nWhere do you want to connect?\nh (Heidelberg)\nl (local)")

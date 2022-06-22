@@ -14,6 +14,10 @@ class Neo4J:
             result = session.write_transaction(self._amr_exists, node_id)
             return result[0]["Exists"]
 
+    def add_property(self, node_id, node_type, property_name, value):
+        with self.driver.session() as session:
+            session.write_transaction(self._add_property, node_id, node_type, property_name, value)
+
     def connect_amr(self, node, type, node_id):
         with self.driver.session() as session:
             session.write_transaction(self._connect_amr, node, type, node_id)
@@ -30,23 +34,22 @@ class Neo4J:
         with self.driver.session() as session:
             session.write_transaction(self._write_amr_start, node_id, node_data)
 
-    def write_edge(self):
+    def write_edge(self, node_id1, node_type1, node_id2, node_type2, relationship):
         with self.driver.session() as session:
-            session.write_transaction(self._write_edge)
-
-    def init_edges(self):
-        with self.driver.session() as session:
-            session.write_transaction(self._init_edges)
+            session.write_transaction(self._write_edge, node_id1, node_type1, node_id2, node_type2, relationship)
 
     def write_node(self, node_id, node_data):
         with self.driver.session() as session:
             session.write_transaction(self._write_node, node_id, node_data)
 
+    def init_edges(self):
+        with self.driver.session() as session:
+            session.write_transaction(self._init_nodes)
+
     def init_nodes(self, node_id, node_data):
         with self.driver.session() as session:
             session.write_transaction(self._init_nodes, node_id, node_data)
 
-    # WIP
     @staticmethod
     def _amr_exists(tx, node_id):
         result = tx.run("OPTIONAL MATCH (a:amr) "
@@ -109,6 +112,12 @@ class Neo4J:
                type_premise="premise", type_conclusion="original_conclusion")
 
     @staticmethod
+    def _add_property(tx, node_id, node_type, property_name, value):
+        tx.run(f"MATCH (a:{node_type}) "
+               "WHERE a.id=$node_id "
+               f"SET a.{property_name} = $value", node_id=node_id, value=value)
+
+    @staticmethod
     def _search_keyword(tx, keyword):
         result = tx.run("MATCH (a:argument_unit) "
                         "WHERE toLower(a.rawText) CONTAINS toLower($keyword) AND a.type=$type "
@@ -135,9 +144,10 @@ class Neo4J:
                "MERGE (a)-[c:ISREALTEDTO]->(b)", name="Argument structure", type="premise")
 
     @staticmethod
-    def _write_edge(tx):
-        tx.run()
+    def _write_edge(tx, node_id1, node_type1, node_id2, node_type2, relationship):
+        tx.run(f"MATCH (a:{node_type1} {{id: $node_id1}}), (b:{node_type2} {{id: $node_id2}}) "
+               f"MERGE (a)-[:{relationship}]->(b)", node_id1=node_id1, node_id2=node_id2)
 
     @staticmethod
     def _write_node(tx, node_id, node_data):
-        tx.run("MERGE (:$node_type {id: $node_id}")
+        tx.run(f"MERGE (:{node_data} {{id: $node_id}})", node_id=node_id)

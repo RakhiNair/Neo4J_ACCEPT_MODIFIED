@@ -100,7 +100,7 @@ def generate(app, model, csv_input, start, end, pandas_file):
     i = start
     try:
         while i < end:
-            sup_id = pandas_file[pandas_file.rfind("/")+1:pandas_file.rfind(".")] + "_" + str(csv_input.argument_id[i])
+            sup_id = pandas_file[pandas_file.rfind("\\")+1:pandas_file.rfind(".")] + "_" + str(csv_input.argument_id[i])
             if not app.amr_exists(sup_id):
                 # premise
                 j = 0
@@ -120,8 +120,8 @@ def generate(app, model, csv_input, start, end, pandas_file):
                     amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), sup_id]  # int64 not supported
                     add_to_graph(app, amr_creation_input, f"original_conclusion_{j}", "original_conclusion", pandas_file)
                     j += 1
-            # else:
-            #     print("AMR for " + sup_id + " already exists")
+            else:
+                print("AMR for " + sup_id + " already exists")
             i += 1
     except Exception as e:
         logging.error(traceback.format_exc())
