@@ -44,7 +44,7 @@ class Neo4J:
 
     def init_edges(self):
         with self.driver.session() as session:
-            session.write_transaction(self._init_nodes)
+            session.write_transaction(self._init_edges)
 
     def init_nodes(self, node_id, node_data):
         with self.driver.session() as session:
