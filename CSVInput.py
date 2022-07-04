@@ -67,12 +67,12 @@ if __name__ == "__main__":
     elif args.command == "amr":
         print("Loading model...")
         amr_model = amrlib.load_stog_model()
-        # for testing (app, model, data, start, end), 12326 lines
-        AMR_controller.generate(app, amr_model, csv_data, 0, 12326, file_name)
+        # parameter: app, model, data, start, end
+        # csv_data.shape[0]
+        AMR_controller.generate(app, amr_model, csv_data, 0, csv_data.shape[0], file_name)
     # For testing purposes
     elif args.command == "test":
-        print("Creating...")
-        create_basic_database(csv_data)
+        print(csv_data.shape[0])
     else:
         print("Some Error")
     app.close()
