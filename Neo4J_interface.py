@@ -1,4 +1,5 @@
 from neo4j import GraphDatabase
+import math
 
 
 class Neo4J:
@@ -17,6 +18,11 @@ class Neo4J:
         with self.driver.session() as session:
             result = session.write_transaction(self._amr_exists, node_id)
             return result[0]["Exists"]
+        
+    def amr_not_exists(self, node_id):
+        with self.driver.session() as session:
+            result = session.write_transaction(self._amr_not_exists, node_id)
+            return result[0]["NotExists"]
 
     def connect_amr(self, node, type, node_id):
         with self.driver.session() as session:
@@ -49,12 +55,22 @@ class Neo4J:
     def init_nodes(self, node_id, node_data):
         with self.driver.session() as session:
             session.write_transaction(self._init_nodes, node_id, node_data)
+        
 
     @staticmethod
     def _add_property(tx, node_id, property_name, value):
         tx.run(f"MATCH (a) "
                "WHERE a.id=$node_id "
                f"SET a.{property_name} = $value", node_id=node_id, value=value)
+        
+    @staticmethod
+    def _amr_not_exists(tx, node_id):
+        result = tx.run("OPTIONAL MATCH (a:amr) "
+                        "WHERE a.sup_id = $node_id "
+                        f"RETURN a IS NULL AS NotExists", node_id=node_id)
+        return result.data()
+
+    
 
     @staticmethod
     def _amr_exists(tx, node_id):
@@ -79,15 +95,18 @@ class Neo4J:
         :param sup_id:
         :return:
         """
+
+
         tx.run("MERGE (a:amr {id: $amr_id1, sup_id: $sup_id, type: $type, "
                "name: $name1, identifier: $ident1, relationship: $rel1}) "
                "MERGE (b:amr {id: $amr_id2, sup_id: $sup_id, type: $type, "
                "name: $name2, identifier: $ident2, relationship: $rel2}) "
-               f"MERGE (a)-[:{leaf[6]}]->(b)",
+               "WITH replace($leaf_rel, ']', '') AS unlabled_edge "
+               "MERGE (a)-[:unlabled_edge]->(b)",
                amr_id1=sup_id + "_" + root[2] + "_" + root[4], amr_id2=sup_id + "_" + leaf[2] + "_" + leaf[4],
                sup_id=sup_id,
                id=root[0], source=root[1], type=root[2], name1=root[3], name2=leaf[3],
-               ident1=root[4], ident2=leaf[4], rel1=root[5], rel2=leaf[5])
+               ident1=root[4], ident2=leaf[4], rel1=root[5], rel2=leaf[5], leaf_rel = leaf[6])
 
     @staticmethod
     def _init_edges(tx):
@@ -100,22 +119,28 @@ class Neo4J:
         tx.run("MATCH (a:argument_structure), (b:argument_unit) "
                "WHERE a.sup_id = b.sup_id "
                "MERGE (a)-[:SUBSTRUCTURE]->(b)")
+        
 
     @staticmethod
     def _init_nodes(tx, node_id, node_data):
         tx.run("MERGE (:argument {id: $node_id_argument, sup_id: $sup_id, frame: $frame, "
-               "topic: $topic, stance: $stance, source: $source}) "
-               "MERGE (:topic {name: $topic}) "
-               "MERGE (:argument_structure {id: $node_id_argument_structure, sup_id: $sup_id}) "
-               "MERGE (:argument_unit {id: $node_id_premise, sup_id: $sup_id, type: $type_premise, rawText: $premise}) "
-               "MERGE (:argument_unit {id: $node_id_original_conclusion, sup_id: $sup_id, type: $type_conclusion, "
-               "rawText: $conclusion})",
-               node_id_argument=node_id + "_argument", node_id_argument_structure=node_id + "_argument_structure",
-               node_id_premise=node_id + "_premise", node_id_original_conclusion=node_id + "_original_conclusion",
-               sup_id=node_id, frame=node_data["frame"], topic=node_data["topic"],
-               stance=node_data["stance"], source=node_data["source"],
-               premise=node_data["premise"], conclusion=node_data["conclusion"],
-               type_premise="premise", type_conclusion="original_conclusion")
+           "topic: $topic, stance: $stance, source: $source}) "
+           "MERGE (:topic {name: coalesce($topic, 'None')}) "
+           "MERGE (:argument_structure {id: $node_id_argument_structure, sup_id: $sup_id}) "
+           "MERGE (:argument_unit {id: $node_id_premise, sup_id: $sup_id, type: $type_premise, rawText: coalesce($premise, 'None')}) "
+           "MERGE (:argument_unit {id: $node_id_original_conclusion, sup_id: $sup_id, type: $type_conclusion, "
+           "rawText: coalesce($argument_title, 'None'), cleanText: coalesce($conclusion, 'None')})",
+           node_id_argument=node_id + "_argument", node_id_argument_structure=node_id + "_argument_structure",
+           node_id_premise=node_id + "_premise", node_id_original_conclusion=node_id + "_original_conclusion",
+           sup_id=node_id, frame=node_data["frame"], topic=node_data["topic"],
+           stance=node_data["stance"], source=node_data["source"],
+           premise=node_data["premise"], conclusion=node_data["conclusion"],
+           argument_title=node_data["argument_title"],
+           type_premise="premise", type_conclusion="original_conclusion")
+
+
+
+    
 
     @staticmethod
     def _search_keyword(tx, keyword):

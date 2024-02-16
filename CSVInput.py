@@ -7,6 +7,18 @@ from pathlib import Path
 
 import AMR_controller
 import Neo4J_interface
+import torch
+
+
+if torch.cuda.is_available():
+    print("GPU(s) available:")
+    for i in range(torch.cuda.device_count()):
+        print(f"Device {i}: {torch.cuda.get_device_name(i)}")
+    torch.cuda.empty_cache()
+    device = torch.device("cuda")
+else:
+    print("No GPU available. Using CPU.")
+    device = torch.device("cpu")
 
 
 def create_basic_database(csv_input):
@@ -19,16 +31,17 @@ def create_basic_database(csv_input):
     i = 0
     while i < len(csv_input):
         sup_id = file_name + "_" + str(csv_input.argument_id[i])
-        node_dict = {"frame": csv_input.frame[i],
+        node_dict = {"frame": 'None',
                      "topic": csv_input.topic[i],
                      "premise": csv_input.premise[i],
                      "stance": csv_input.stance[i],
                      "conclusion": csv_input.conclusion[i],
+                     "argument_title": csv_input.argument_title[i],
                      "source": file_name}
         # create nodes
         app.init_nodes(sup_id, node_dict)
         i += 1
-    # connect nodes
+    # connect edges
     app.init_edges()
     print("Basic database took", time.time() - start_time, "secs to run")
 
@@ -47,7 +60,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     pandas_file = args.arguments[0]
     # Data for database
-    csv_data = pd.read_csv(pandas_file)
+    csv_data = pd.read_csv(pandas_file,  encoding="utf-8")
     p = Path(pandas_file)
     # File name
     file_name = p.stem
@@ -66,7 +79,7 @@ if __name__ == "__main__":
     # Create AMR
     elif args.command == "amr":
         print("Loading model...")
-        amr_model = amrlib.load_stog_model()
+        amr_model = amrlib.load_stog_model(model_dir='C:\\Users\\acer\\AppData\\Local\\Programs\\Python\\Python38\\Lib\\site-packages\\amrlib\\data\\model_parse_t5-v0_2_0',device=device)
         # parameter: app, model, data, start, end
         # csv_data.shape[0]
         AMR_controller.generate(app, amr_model, csv_data, 0, csv_data.shape[0], file_name)
@@ -76,3 +89,9 @@ if __name__ == "__main__":
     else:
         print("Some Error")
     app.close()
+
+
+    
+
+
+

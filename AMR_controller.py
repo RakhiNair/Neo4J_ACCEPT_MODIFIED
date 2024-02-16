@@ -59,7 +59,7 @@ def add_to_graph(app, amr_creation_input, path, type, pandas_file):
         found_ref = False
         j = i - 1
         ref = i - 1
-        while not found_root:
+        while not found_root and np.abs(j) < len(temp_array):
             if temp_array[i][7] > temp_array[j][7]:
                 if temp_array[i][3] == "None":
                     while not found_ref:
@@ -101,28 +101,37 @@ def generate(app, model, csv_input, start, end, file_name):
     try:
         while i < end:
             sup_id = file_name + "_" + str(csv_input.argument_id[i])
-            if not app.amr_exists(sup_id):
+            if app.amr_not_exists(sup_id):
                 # premise
                 j = 0
                 sentence_split = sent_tokenize(csv_input.premise[i])
                 while j < len(sentence_split):
-                    graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
-                    print(graphs[0])  # control output
-                    amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), sup_id]  # int64 not supported
-                    add_to_graph(app, amr_creation_input, f"premise_{j}", "premise", file_name)
+                    try:
+                        graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
+                        print(graphs[0])  # control output
+                        amr_creation_input = [graphs[0], str(csv_input.argument_id[i]), sup_id]  # int64 not supported
+                        add_to_graph(app, amr_creation_input, f"premise_{j}", "premise", file_name)
+                    except Exception as e:
+                        logging.error(f"Error parsing sentence: {e}")
+                        time.sleep(60)
+                        continue
                     j += 1
-            # conclusion
+                # conclusion
                 j = 0
                 sentence_split = sent_tokenize(csv_input.conclusion[i])
                 while j < len(sentence_split):
-                    graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
-                    print(graphs[0])  # control output
-                    amr_creation_input = [graphs[0], int(csv_input.argument_id[i]), sup_id]  # int64 not supported
-                    add_to_graph(app, amr_creation_input, f"original_conclusion_{j}", "original_conclusion", file_name)
+                    try:
+                        graphs = model.parse_sents([sentence_split[j]])  # creates AMR graph
+                        print(graphs[0])  # control output
+                        amr_creation_input = [graphs[0], str(csv_input.argument_id[i]), sup_id]  # int64 not supported
+                        add_to_graph(app, amr_creation_input, f"original_conclusion_{j}", "original_conclusion", file_name)
+                    except Exception as e:
+                        logging.error(f"Error parsing sentence: {e}")
+                        time.sleep(60)
+                        continue
                     j += 1
-            else:
-                print("AMR for " + sup_id + " already exists")
             i += 1
     except Exception as e:
         logging.error(traceback.format_exc())
+        time.sleep(60)
     print("AMR took", time.time() - start_time, "secs to run")
